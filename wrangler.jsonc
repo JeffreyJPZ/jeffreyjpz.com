@@ -18,6 +18,10 @@
     {
       "pattern": "jeffreyjpz.com",
       "custom_domain": true
+    },
+    {
+      "pattern": "www.jeffreyjpz.com",
+      "custom_domain": true
     }
   ]
 }
