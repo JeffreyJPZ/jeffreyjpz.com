@@ -1,12 +1,13 @@
 ---
-title: "Astro Sphere"
-description: "Portfolio and blog build with astro."
-date: "03/18/2024"
-demoURL: "https://astro-sphere-demo.vercel.app"
-repoURL: "https://github.com/markhorn-dev/astro-sphere"
+title: "Timestamped for F1"
+description: "Play-by-play/events archive for Formula 1 fans"
+date: "2025-09-09"
+demoURL: "https://timestampedforf1.jeffreyjpz.com/"
+repoURL: "https://github.com/JeffreyJPZ/timestamped-for-f1"
 ---
 
-![Astro Sphere](/astro-sphere.jpg)
+TODO
+<!-- ![Astro Sphere](/astro-sphere.jpg)
 
 Astro Sphere is a static, minimalist, lightweight, lightning fast portfolio and blog theme based on Mark Horn's personal website.
 
@@ -76,4 +77,4 @@ Replace npm with your package manager of choice. `npm`, `pnpm`, `yarn`, `bun`, e
 
 ## 🏛️ License
 
-MIT
+MIT -->
