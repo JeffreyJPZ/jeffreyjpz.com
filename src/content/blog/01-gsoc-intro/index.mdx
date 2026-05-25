@@ -48,26 +48,26 @@ Ok, then why do we even need this project?
 
 For one, many AI systems don't make it to production, not because they aren't effective at what they do (usually if workflows are kept simple and predictable),
 but because they need [other, often hard to achieve qualities](https://en.wikipedia.org/wiki/Non-functional_requirement) that have been overlooked with all of the hype surrounding AI.
-Even with the example above, none of these qualities were mentioned. However, there are major problems that involve these qualities that developers may encounter:
+Even with the example above, none of these qualities were mentioned. From a systems standpoint, AI systems face major problems that involve these qualities just like any other system:
 
-What if we need to ensure that [agent actions are permanent once they are taken](https://en.wikipedia.org/wiki/Durability_(database_systems)),
+- What if we need to ensure that [agent actions are permanent once they are taken](https://en.wikipedia.org/wiki/Durability_(database_systems)),
 the ability to [track all of the actions that an agent takes](https://en.wikipedia.org/wiki/Audit), and the ability to [supervise AI for critical actions](https://www.ibm.com/think/topics/human-in-the-loop)?
 These are non-negotiable requirements for governments and enterprises in high-stakes, highly-regulated fields like healthcare and finance.
 
-What if we need to [trigger millions of agents at the same time](https://www.geeksforgeeks.org/system-design/what-is-scalability/),
+- What if we need to [trigger millions of agents at the same time](https://www.geeksforgeeks.org/system-design/what-is-scalability/),
 and be able to ensure every [agent completes its tasks](https://www.ibm.com/think/topics/application-resiliency) knowing that the agent or any services it interacts with could fail at any time?
 For companies building products that serve millions or billions of users daily that run on infrastructure spanning multiple continents, these are essential requirements that an AI system must fulfill.
 
-What if we need to be able to reliably trigger agents when a complex set of business conditions is met?
+- What if we need to be able to reliably trigger agents when a complex set of business conditions is met?
 This includes conditions as simple as "trigger an agent when a new user is registered",
 to conditions such as "trigger an agent when the issue severity is sev-3 or lower and the affected service has at least 3 failed deployment rollbacks in the last 24 hours and error rates across any downstream services have increased by more than 20% compared to the previous hour".
 Ideally, we'd want a solution that can support arbitrary conditions as the business evolves.
 
-What if we need agents to interact with a variety of legacy and existing systems (databases, streaming platforms)?
+- What if we need agents to interact with a variety of legacy and existing systems (databases, streaming platforms)?
 We don't want to modify existing systems without a very good reason to do so.
 If we absolutely need to modify existing systems, we want to make minimal changes to them.
 
-What if we only have a small team?
+- What if we only have a small team?
 Not everyone is a distributed systems expert, and maintaining custom infrastructure/pipelines is impractical and **really annoying**.
 
 Now, imagine you could address all of these problems with only a handful of lines of code, and a few configuration files.
