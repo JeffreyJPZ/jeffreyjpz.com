@@ -1,22 +1,40 @@
 ---
-title: "[WIP]: Weaponizing developer laziness with Drasi and Dapr"
-description: "Google Summer of Code 2026 project introduction"
-date: "2026-05-05"
+title: "Building intelligent and reactive agents with (almost) no code"
+description: "Google Summer of Code 2026 project introduction — Drasi and Dapr"
+date: "2026-05-25"
 ---
 
 import Callout from "@/components/Callout.astro";
 
 ---
 
-TODO: delete all this useless junk once I adapt it for my post
+As promised, here is the first blog post in a series that I'll be doing over the summer for GSoC 2026.
 
-## Pagefind search 🔎
+My name is Jeffrey, a fourth-year CS student at the University of British Columbia, Canada, and I have the privilege of
+working on not one, but **two** exciting [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/) projects this summer — we'll get to those later.
 
-[Pagefind](https://pagefind.app) is a search library for static websites. Micro uses [Sergey Shishkin's](https://github.com/shishkin) [astro-pagefind](https://github.com/shishkin/astro-pagefind) integration. This integration simplifies development and does not require any changes to the default build script.
+## What is the CNCF anyway? 🔎
 
-Press <kbd>/</kbd> or <kbd>CTRL</kbd> + <kbd>K</kbd> to open the search dialog. For Mac users, <kbd>⌘</kbd> + <kbd>K</kbd> can also be used. To dismiss the search dialog, press <kbd>Esc</kbd> or click on an area outside the component.
+If you're already in the industry, you'll probably have heard of the CNCF, or at least used one of their projects directly or indirectly.
+However, if you're a student like me, only a few steps removed from being a code monkey, I'll give a brief explanation of the kind of work they do:
 
-### Build and develop
+The CNCF is an "umbrella" organization under the [Linux Foundation](https://www.linuxfoundation.org/),
+which itself does a lot of interesting work and hosts other organizations spanning a variety of domains (examples being [OpenJS](https://openjsf.org/), which supports Node.js as well as the [React Foundation](https://react.foundation/)).
+
+As for the CNCF, it centers around this idea of "cloud native", which has three goals (as I like to understand it):
+1. Figure out how to maximize the resources/compute offered by modern computing environments.
+These computing environments can be "on-premises" (i.e. your own/your company's machines) or cloud providers such as AWS, Azure, or GCP (i.e. some megacorporation's machines), or a mix of both.
+2. Make it as easy as possible for developers and IT teams to build, deploy, and manage the massive, complex distributed systems supporting the top apps of today.
+3. Use the insights of (1) to work on (2), and vice versa.
+
+Many of the [projects under the CNCF](https://www.cncf.io/projects/) focus on problems such as observability, orchestration, security, and networking among others.
+If you're interested in a specific area, you should definitely take a look at some of the projects focused on those areas and contribute if you're able to — it's a great learning experience as a student.
+
+Anyway, enough of the CNCF for now, let's dive into the work that I'll be doing.
+
+### Weaponizing developer laziness
+
+To understand why this work is useful
 
 <Callout type="error">
   The site **must** be built at least once so Pagefind can index the content.
