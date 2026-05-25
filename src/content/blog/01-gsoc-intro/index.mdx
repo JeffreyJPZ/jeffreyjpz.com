@@ -11,7 +11,7 @@ import Callout from "@/components/Callout.astro";
 As promised, here is the first blog post in a series that I'll be doing over the summer for GSoC 2026.
 
 My name is Jeffrey, a fourth-year CS student at the University of British Columbia, Canada, and I have the privilege of
-working on not one, but **two** exciting [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/) projects this summer — we'll get to those later.
+working on **not one, but two** exciting [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/) projects this summer — we'll get to those later.
 
 ## What is the CNCF anyway? 🔎
 
@@ -24,7 +24,7 @@ which itself does a lot of interesting work and hosts other organizations spanni
 As for the CNCF, it centers around this idea of "cloud native", which has three goals (as I like to understand it):
 1. Figure out how to maximize the resources/compute offered by modern computing environments.
 These computing environments can be "on-premises" (i.e. your own/your company's machines) or cloud providers such as AWS, Azure, or GCP (i.e. some megacorporation's machines), or a mix of both.
-2. Make it as easy as possible for developers and IT teams to build, deploy, and manage the massive, complex distributed systems supporting the top apps of today.
+2. Make it as easy as possible for developers and IT teams to build, deploy, and manage the massive, complex distributed systems supporting the top products of today.
 3. Use the insights of (1) to work on (2), and vice versa.
 
 Many of the [projects under the CNCF](https://www.cncf.io/projects/) focus on problems such as observability, orchestration, security, and networking among others.
@@ -33,13 +33,53 @@ If you're really interested in the whole "cloud native" domain, they also offer 
 
 Anyway, enough of the CNCF for now, let's dive into the work that I'll be doing.
 
-### Weaponizing developer laziness
+### AI is fundamentally a systems problem
 
-To understand why this work is useful
+The AI landscape today needs little introduction — chatbots/LLMs are used by most on a daily basis, and AI agents and agent workflows have been adopted by almost every company you can think of to power internal products and user-facing products on occasion.
+Simply put, this project allows developers to build AI agents that can react to external events from arbitrary systems.
+This kind of problem is quite doable, and has already been done countless times before.
+
+Let's say that we want an agent that can automatically triage customer support tickets.
+We can just poll whatever API we're interested in, or if the API supports [webhooks](https://en.wikipedia.org/wiki/Webhook), have that API send events to us,
+then call some LLM and do something with the output. If we're feeling extra fancy, we can use one of the popular agent/agent orchestration frameworks like [Langchain](https://github.com/langchain-ai/langchain) for the second part.
+We can demo the result and everyone's happy.
+
+Ok, then why do we even need this project?
+
+For one, many AI systems don't make it to production, not because they aren't effective at what they do (usually if workflows are kept simple and predictable),
+but because they need [other, often hard to achieve qualities](https://en.wikipedia.org/wiki/Non-functional_requirement) that have been overlooked with all of the hype surrounding AI.
+Even with the example above, none of these qualities were mentioned. However, there are major problems that involve these qualities that developers may encounter:
+
+What if we need to ensure that [agent actions are permanent once they are taken](https://en.wikipedia.org/wiki/Durability_(database_systems)),
+the ability to [track all of the actions that an agent takes](https://en.wikipedia.org/wiki/Audit), and the ability to [supervise AI for critical actions](https://www.ibm.com/think/topics/human-in-the-loop)?
+These are non-negotiable requirements for governments and enterprises in high-stakes, highly-regulated fields like healthcare and finance.
+
+What if we need to [trigger millions of agents at the same time](https://www.geeksforgeeks.org/system-design/what-is-scalability/),
+and be able to ensure every [agent completes its tasks](https://www.ibm.com/think/topics/application-resiliency) knowing that the agent or any services it interacts with could fail at any time?
+For companies building products that serve millions or billions of users daily that run on infrastructure spanning multiple continents, these are essential requirements that an AI system must fulfill.
+
+What if we need to be able to reliably trigger agents when a complex set of business conditions is met?
+This includes conditions as simple as "trigger an agent when a new user is registered",
+to conditions such as "trigger an agent when the issue severity is sev-3 or lower and the affected service has at least 3 failed deployment rollbacks in the last 24 hours and error rates across any downstream services have increased by more than 20% compared to the previous hour".
+Ideally, we'd want a solution that can support arbitrary conditions as the business evolves.
+
+What if we need agents to interact with a variety of legacy and existing systems (databases, streaming platforms)?
+We don't want to modify existing systems without a very good reason to do so.
+If we absolutely need to modify existing systems, we want to make minimal changes to them.
+
+What if we only have a small team?
+Not everyone is a distributed systems expert, and maintaining custom infrastructure/pipelines is impractical and **really annoying**.
+
+Now, imagine you could address all of these problems with only a handful of lines of code, and a few configuration files.
+That is the essence of the project.
+
+### Weaponizing developer laziness
 
 ### Drasi
 
 ### Dapr
+
+### How to achieve this
 
 <Callout type="error">
   The site **must** be built at least once so Pagefind can index the content.
