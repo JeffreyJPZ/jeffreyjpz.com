@@ -75,17 +75,23 @@ If we absolutely need to modify existing systems, we want to make minimal change
 - What if we only have a small team?
 Not everyone is a distributed systems expert, and maintaining custom infrastructure/pipelines can be really annoying at best to completely impractical at worst.
 
-Now, imagine you could address all of these problems (and many others) **with only a handful of lines of code, and a few configuration files**.
+Now, imagine you could address all of these problems and many others **with only a handful of lines of code, and a few configuration files**.
 That is the essence of this project.
 
 ## Weaponizing developer laziness with CNCF projects
-TODO
+
+Going back to the CNCF, there are many projects that focus on this concept of "developer experience".
+However, the two most relevant to us (and the ones that I'll be integrating) are Drasi and Dapr Agents.
 
 ### Drasi
-TODO
 
-### Dapr and Dapr Agents
-TODO
+[Drasi](https://drasi.io/) is a "change data processing" platform, which allows you to build pipelines that track business-level events.
+There are various alternatives in this space such as polling, custom [change data capture](https://en.wikipedia.org/wiki/Change_data_capture) pipelines using Debezium/Apache Kafka/Apache Flink (or Spark),
+or "one-way sync"/"bidirectional sync" platforms such as Airbyte or Zapier. In comparison, Drasi eliminates the "stale data" vs. "unnecessary load" tradeoff associated with polling,
+exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks, as well as the actions that it takes.
+
+### Dapr Agents
+To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to understand the [Dapr](https://dapr.io/) ecosystem first.
 
 ## How we plan to achieve our goals
 TODO
