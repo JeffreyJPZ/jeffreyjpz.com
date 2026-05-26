@@ -1,0 +1,126 @@
+---
+title: "Building intelligent and reactive agents with (almost) no code"
+description: "Google Summer of Code 2026 project introduction — Drasi and Dapr"
+date: "2026-05-26"
+---
+
+import Callout from "@/components/Callout.astro";
+
+---
+
+## Introduction
+
+As promised, here is the first blog post in a series that I'll be doing over the summer for GSoC 2026.
+
+My name is Jeffrey, a fourth-year CS student at the University of British Columbia, Canada, and I have the privilege of
+working on **not one, but two** exciting [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/) projects this summer,
+helping developers build AI agents that can react to external events from arbitrary systems — more on that later.
+
+## What is the CNCF anyway?
+
+If you're already in the industry, you'll probably have heard of the CNCF, or at least used one of their projects directly or indirectly.
+However, if you're a student like me, only a few steps removed from being a code monkey, I'll give a brief explanation of the kind of work they do:
+
+The CNCF is an "umbrella" organization under the [Linux Foundation](https://www.linuxfoundation.org/),
+which itself does a lot of interesting work and hosts other organizations spanning many domains (examples being [OpenJS](https://openjsf.org/), which supports Node.js as well as the [React Foundation](https://react.foundation/)).
+
+As for the CNCF, it centers around this idea of "cloud native", which has three goals (as I like to understand it):
+1. Figure out how to maximize the resources/compute offered by modern computing environments.
+These computing environments can be "on-premises" (i.e. your own/your company's machines) or cloud providers such as AWS, Azure, or GCP (i.e. some megacorporation's machines), or a mix of both.
+2. Make it as easy as possible for developers and IT teams to build, deploy, and manage the massive, complex distributed systems supporting the top products of today.
+3. Use the insights of (1) to work on (2), and vice versa.
+
+Many of the [projects under the CNCF](https://www.cncf.io/projects/) focus on problems such as observability, orchestration, security, and networking among others.
+If you're interested in a specific area, you should definitely take a look at some of the projects focused on those areas and contribute if you're able to — it's a great learning experience as a student.
+If you're really interested in the whole "cloud native" domain, they also offer a variety of [mentorship/internship opportunities](https://github.com/cncf/mentoring).
+
+Anyway, enough of the CNCF for now, let's learn about the background behind the work that I'll be doing and why I believe this work is impactful.
+
+## Developing AI systems
+
+The AI landscape today needs little introduction — chatbots/LLMs are used by most on a daily basis, and AI agents and agent workflows have been adopted by almost every company you can think of to power internal products and the occasional user-facing product.
+These kinds of problems, **"we need AI to do x in order to do y"** have already been implemented countless times before.
+
+Let's say that we want an agent that can automatically triage customer support tickets.
+We can just poll whatever API we're interested in, or if the API supports [webhooks](https://en.wikipedia.org/wiki/Webhook), have that API send events to us,
+then call some LLM and do something with the output. If we're feeling extra fancy, we can use one of the popular agent/agent orchestration frameworks like [LangChain/LangGraph](https://github.com/langchain) for the second part.
+Finally, we can demo the result and everyone's happy at the end of the day.
+
+Okay, then what's the issue?
+
+For one, many AI systems don't make it to production, not because they aren't effective at what they do (usually if workflows are kept simple and predictable),
+but because they need [other, often hard to achieve quality attributes](https://en.wikipedia.org/wiki/Non-functional_requirement) that have been overlooked with all of the hype surrounding AI.
+Even with the example above, none of these qualities were mentioned because there are **just too many of them**.
+
+## AI is fundamentally a systems problem
+
+From a systems standpoint, AI systems face major problems that involve these qualities just like any other system:
+
+- What if we need to ensure that [agent actions are permanent once they are taken](https://en.wikipedia.org/wiki/Durability_(database_systems)),
+the ability to [track all of the actions that an agent takes](https://en.wikipedia.org/wiki/Audit), and the ability to [supervise AI for critical actions](https://www.ibm.com/think/topics/human-in-the-loop)?
+These are non-negotiable requirements for governments and enterprises in high-stakes, highly-regulated fields like healthcare and finance.
+
+- What if we need to [trigger millions of agents at the same time](https://www.geeksforgeeks.org/system-design/what-is-scalability/),
+be able to [inspect each agent execution]((https://en.wikipedia.org/wiki/Observability_(software)))
+and be able to ensure every [agent completes its tasks](https://www.ibm.com/think/topics/application-resiliency) knowing that agents or any services they interact with could fail at any time?
+For companies building products that serve millions or billions of users daily that run on infrastructure spanning multiple continents, these are essential requirements that an AI system must fulfill.
+
+- What if we need to be able to reliably trigger agents when a complex set of business conditions is met?
+This includes conditions as simple as **"trigger an agent when a new user is registered"**,
+to conditions such as **"trigger an agent when the issue severity is sev-3 or lower and the affected service has at least 3 failed deployment rollbacks in the last 24 hours and error rates across any downstream services have increased by more than 20% from the previous hour"**.
+Ideally, we want a solution that can support arbitrary conditions as the business evolves.
+
+- What if we need agents to consume from and interact with a variety of legacy and existing systems (databases, streaming platforms, other systems)?
+We don't want to modify existing systems without a very good reason to do so.
+If we absolutely need to modify existing systems, we want to make minimal changes to them.
+
+- What if we only have a small team?
+Not everyone is a distributed systems expert, and maintaining custom infrastructure/pipelines can be really annoying at best to completely impractical at worst.
+
+Now, imagine you could address all of these problems and many others **with only a handful of lines of code, and a few configuration files**.
+That is the essence of this project.
+
+## Weaponizing developer laziness with CNCF projects
+
+Going back to the CNCF, since many developers like myself hate doing more work than necessary, there have been many projects that have popped up over the years focusing on this concept of "developer experience".
+However, the two most relevant to us (and the ones that I'll be integrating) are Drasi and Dapr Agents.
+
+### Drasi
+
+Remember the problems that we mentioned earlier about triggering agents when a complex set of business conditions is met and having them consume from legacy and existing systems?
+[Drasi](https://drasi.io/) is a "change data processing" platform that solves these problems, allowing us to build pipelines that track business-level events **across** disparate data sources.
+
+There are various alternatives in this space such as polling, custom [change data capture](https://en.wikipedia.org/wiki/Change_data_capture) pipelines using Debezium/Apache Kafka/Apache Flink (or Spark),
+or "one-way sync"/"bidirectional sync" platforms such as Airbyte or Zapier. In comparison, Drasi eliminates the "stale data" vs. "unnecessary load" tradeoff associated with polling,
+exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks across those sources, the actions it takes, and the environment it is deployed in.
+
+You can read more about its concepts [here](https://drasi.io/concepts/), but for our purposes, we just need to know that we can point it to a variety of data sources (MySQL/PostgreSQL databases, Kubernetes cluster API servers, etc.),
+define the events using standard [graph query syntax](https://en.wikipedia.org/wiki/Graph_Query_Language#), and choose how to interact with other services (via HTTP, gRPC, Dapr publish/subscribe, or cloud service connectors).
+For our project, Drasi provides the connection between our data and our agents.
+
+### Dapr Agents (and Dapr)
+
+To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to also understand the [Dapr](https://dapr.io/) ecosystem.
+Simply put, Dapr provides [developer-centric APIs, known as "building blocks"](https://docs.dapr.io/developing-applications/building-blocks/), for common distributed systems problems such as inter-service communication, state management, publish/subscribe, and [concurrent computation](https://en.wikipedia.org/wiki/Actor_model).
+These APIs are used in application code (usually through the [corresponding language SDK](https://docs.dapr.io/developing-applications/sdks/)), allowing applications to delegate the "dirty work" to the [Dapr runtime](https://docs.dapr.io/concepts/overview/#sidecar-architecture).
+Many organizations have adopted Dapr to increase developer velocity, including Microsoft, IBM, NASA, and Grafana. 
+In fact, Drasi also leverages Dapr's service invocation, publish/subscribe, and state management capabilities, and integrates with Dapr through its 
+[state store connector](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-sync-dapr-statestore-reaction/), and 
+[publish/subscribe connector](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/) (keep this one in mind for later).
+To provide an even better developer experience for developers, some of these APIs have been used to implement higher-level frameworks, mainly workflows and Dapr Agents (which itself uses workflows). 
+
+Now that we understand how Dapr Agents fits into the Dapr ecosystem, how is it different from competing agent frameworks such as [LangChain/LangGraph](https://github.com/langchain) and [Pydantic AI](https://github.com/pydantic/pydantic-ai), 
+or dedicated workflow orchestration frameworks such as [Temporal](https://github.com/temporalio/temporal) or [Apache Airflow](https://github.com/apache/airflow)? 
+A previous [Diagrid blog post](https://www.diagrid.io/blog/the-agentic-spectrum-why-its-not-agents-vs-workflows) explains this in more detail, but Dapr Agents effectively treats AI and distributed systems as first-class concerns, 
+so developers don't need to compromise on system qualities or compose multiple frameworks with different philosophies and roadmaps.
+
+If you're interested in the architecture of Dapr Agents, you can find it [here](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/), but all we need to know is that Dapr Agents drives our AI workflows to completion while handling virtually all of the AI systems problems mentioned earlier.
+
+## How we plan to achieve our goals
+
+This is the hard part (obviously), as we need to ensure that the work we do aligns with both projects' roadmaps (to allow for future extensions), while also prioritizing the developer experience. 
+However, the first step seems relatively straightforward — allow Drasi events to directly trigger agent executions. This will likely involve a Drasi integration for Dapr Agents, and the previously mentioned Drasi publish-subscribe connector.
+
+## What next?
+
+Stay tuned for more updates as the project progresses, or join the Discord servers for [Dapr](https://discord.com/invite/dapr-778680217417809931) and [Drasi](https://discord.com/invite/AX7FneckBq) — inputs are welcome.
