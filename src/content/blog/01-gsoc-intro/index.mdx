@@ -100,7 +100,7 @@ For our project, Drasi provides the connection between our data and our agents.
 
 To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to also understand the [Dapr](https://dapr.io/) ecosystem.
 Simply put, Dapr provides [developer-centric APIs, known as "building blocks"](https://docs.dapr.io/developing-applications/building-blocks/), for common distributed systems problems such as inter-service communication, state management, publish/subscribe, and [concurrent computation](https://en.wikipedia.org/wiki/Actor_model).
-These APIs are used in application code (often through the [corresponding language SDK](https://docs.dapr.io/developing-applications/sdks/)), allowing applications to delegate the "dirty work" to the [Dapr runtime](https://docs.dapr.io/concepts/overview/#sidecar-architecture).
+These APIs are used in application code (usually through the [corresponding language SDK](https://docs.dapr.io/developing-applications/sdks/)), allowing applications to delegate the "dirty work" to the [Dapr runtime](https://docs.dapr.io/concepts/overview/#sidecar-architecture).
 Many organizations have adopted Dapr to increase developer velocity, including Microsoft, IBM, NASA, and Grafana. 
 In fact, Drasi also leverages Dapr's service invocation, publish/subscribe, and state management capabilities, and integrates with Dapr through its 
 [state store connector](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-sync-dapr-statestore-reaction/), and 
@@ -116,99 +116,9 @@ If you're interested in the architecture of Dapr Agents, you can find it [here](
 
 ## How we plan to achieve our goals
 
+This is the hard part (obviously), as we need to ensure that the work we do aligns with both projects' roadmaps (to allow for future extensions), while also prioritizing the developer experience. 
+However, the first step seems relatively straightforward — allow Drasi events to directly trigger agent executions. This will likely involve a Drasi integration for Dapr Agents, and the previously mentioned Drasi publish-subscribe connector.
 
+## What next?
 
-<Callout type="error">
-  The site **must** be built at least once so Pagefind can index the content.
-</Callout>
-
-```bash
-# Pagefind must index the site to function
-npm run build
-```
-
-When developing you can continue to use `npm run dev` and Pagefind will use the index from the last available build.
-
----
-
-## Giscus comments 💬
-
-[Giscus](https://giscus.app) leverages Github discussions to act as a comments system. To get Giscus working on your own website, see [here](/blog/01-getting-started#deploy-the-site).
-
----
-
-## Callout component 🆕
-
-<Callout>
-  Adipisicing et officia reprehenderit fugiat occaecat cupidatat exercitation
-  labore consequat ullamco nostrud non.
-</Callout>
-
-<Callout type="info">
-  Adipisicing et officia reprehenderit fugiat occaecat cupidatat exercitation
-  labore consequat ullamco nostrud non.
-</Callout>
-
-<Callout type="warning">
-  Adipisicing et officia reprehenderit fugiat occaecat cupidatat exercitation
-  labore consequat ullamco nostrud non.
-</Callout>
-
-<Callout type="error">
-  Adipisicing et officia reprehenderit fugiat occaecat cupidatat exercitation
-  labore consequat ullamco nostrud non.
-</Callout>
-
----
-
-## UI enhancements 🎨
-
-- Elements are styled and animate on focus
-- Increased contrast in light mode
-- Active theme is indicated by theme buttons
-- Separate syntax highlight themes for light and dark mode
-- Code blocks have a copy button
-- Add pagination to the bottom of blog posts
-- Create 404 page
-- Add ToC component to posts
-
----
-
-## Other changes
-
-- Change fonts to Geist Sans and Geist Mono
-- Switch base color from "stone" to "neutral"
-- Change formatted date to use "long" option for month
-- Minor spacing changes throughout
-- Remove "work" collection and components
-  - If desired, you can get the code from [Astro Nano](https://github.com/markhorn-dev/astro-nano)
-- Slightly increased link decoration offset
-- Slightly sped-up animations
-- Reversed animation
-- Ensure posts use an h1 tag for post titles
-- Tweaked typography
-
----
-
-## Issues ⚠️
-
-### Active issues
-
-No active issues!
-
-### Closed issues
-
-- Fixed by [blopker](https://github.com/blopker): [ToC links are obscured by Header when scrolled to](https://github.com/trevortylerlee/astro-micro/issues/4)
-- Fixed by [blopker](https://github.com/blopker): [Pagefind requires a refresh to function when ViewTransitions is enabled](https://github.com/trevortylerlee/astro-micro/issues/7)
-- Fixed by [arastoonet](https://github.com/arastoonet): [Fix typo in README](https://github.com/trevortylerlee/astro-micro/pull/19)
-- Fixed by [cgranier](https://github.com/cgranier): [Pagination links advance by slug/folder](https://github.com/trevortylerlee/astro-micro/issues/26)
-- Fixed by [cgranier](https://github.com/cgranier): [Hides Table of Contents when there are no headings](https://github.com/trevortylerlee/astro-micro/pull/30)
-- Fixed: [Giscus does not appear when switching blogs via post navigation](https://github.com/trevortylerlee/astro-micro/issues/32)
-- Fixed: [Geist font renders incorrectly on Windows](https://github.com/trevortylerlee/astro-micro/issues/33)
-- Fixed: [Pagination fails in Cloudflare Pages](https://github.com/trevortylerlee/astro-micro/issues/39)
-- Fixed by [luciancah](https://github.com/luciancah): [Prevent Pagefind from double-indexing results](https://github.com/trevortylerlee/astro-micro/issues/40)
-- Fixed by [luciancah](https://github.com/luciancah): [Pagefind should close if a result is clicked](https://github.com/trevortylerlee/astro-micro/issues/43)
-- Fixed: [Implement tags](https://github.com/trevortylerlee/astro-micro/issues/70)
-- Fixed by [anaxite](https://github.com/anaxite): [Update Astro to 5.0](https://github.com/trevortylerlee/astro-micro/issues/73)
-- Fixed by [MoyaF](https://github.com/MoyaF): [Table of Contents links not working](https://github.com/trevortylerlee/astro-micro/issues/75)
-- Fixed by [antoniovalentini](https://github.com/antoniovalentini): [Possible bugs due to outdated Astro version 5.0.3](https://github.com/trevortylerlee/astro-micro/issues/78)
+Stay tuned for more updates as the project progresses, or join the Discord servers for [Dapr](https://discord.com/invite/dapr-778680217417809931) and [Drasi](https://discord.com/invite/AX7FneckBq) — inputs are welcome.
