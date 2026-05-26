@@ -85,10 +85,12 @@ However, the two most relevant to us (and the ones that I'll be integrating) are
 
 ### Drasi
 
-[Drasi](https://drasi.io/) is a "change data processing" platform, which allows you to build pipelines that track business-level events.
+[Drasi](https://drasi.io/) is a "change data processing" platform, which allows us to build pipelines that track business-level events **across** disparate data sources.
 There are various alternatives in this space such as polling, custom [change data capture](https://en.wikipedia.org/wiki/Change_data_capture) pipelines using Debezium/Apache Kafka/Apache Flink (or Spark),
 or "one-way sync"/"bidirectional sync" platforms such as Airbyte or Zapier. In comparison, Drasi eliminates the "stale data" vs. "unnecessary load" tradeoff associated with polling,
-exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks, as well as the actions that it takes.
+exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks across those sources, as well as the actions it takes.
+You can read more about its concepts [here](https://drasi.io/concepts/), but for our purposes, we just need to know that we can point it to a variety of data sources (MySQL/PostgreSQL databases, Kubernetes cluster API servers, etc.),
+define the events using standard [graph query syntax](https://en.wikipedia.org/wiki/Graph_Query_Language#), and choose how to interact with other services (via HTTP, gRPC, pub/sub, or cloud service connectors).
 
 ### Dapr Agents
 To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to understand the [Dapr](https://dapr.io/) ecosystem first.
