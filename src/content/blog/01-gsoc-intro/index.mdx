@@ -66,7 +66,7 @@ For companies building products that serve millions or billions of users daily t
 - What if we need to be able to reliably trigger agents when a complex set of business conditions is met?
 This includes conditions as simple as **"trigger an agent when a new user is registered"**,
 to conditions such as **"trigger an agent when the issue severity is sev-3 or lower and the affected service has at least 3 failed deployment rollbacks in the last 24 hours and error rates across any downstream services have increased by more than 20% from the previous hour"**.
-Ideally, we  want a solution that can support arbitrary conditions as the business evolves.
+Ideally, we want a solution that can support arbitrary conditions as the business evolves.
 
 - What if we need agents to consume from and interact with a variety of legacy and existing systems (databases, streaming platforms, other systems)?
 We don't want to modify existing systems without a very good reason to do so.
@@ -100,7 +100,7 @@ For our project, Drasi provides the connection between our data and our agents.
 
 To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to also understand the [Dapr](https://dapr.io/) ecosystem.
 Simply put, Dapr provides [developer-centric APIs, known as "building blocks"](https://docs.dapr.io/developing-applications/building-blocks/), for common distributed systems problems such as inter-service communication, state management, publish/subscribe, and [concurrent computation](https://en.wikipedia.org/wiki/Actor_model).
-These APIs are used in application code (often through the [corresponding language SDK](https://docs.dapr.io/developing-applications/sdks/)), allowing the application to delegate the "dirty work" to the [Dapr runtime](https://docs.dapr.io/concepts/overview/#sidecar-architecture).
+These APIs are used in application code (often through the [corresponding language SDK](https://docs.dapr.io/developing-applications/sdks/)), allowing applications to delegate the "dirty work" to the [Dapr runtime](https://docs.dapr.io/concepts/overview/#sidecar-architecture).
 Many organizations have adopted Dapr to increase developer velocity, including Microsoft, IBM, NASA, and Grafana. 
 In fact, Drasi also leverages Dapr's service invocation, publish/subscribe, and state management capabilities, and integrates with Dapr through its 
 [state store connector](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-sync-dapr-statestore-reaction/), and 
@@ -115,7 +115,8 @@ so developers don't need to compromise on system qualities or compose multiple f
 If you're interested in the architecture of Dapr Agents, you can find it [here](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/), but all we need to know is that Dapr Agents drives our AI workflows to completion while handling virtually all of the AI systems problems mentioned earlier.
 
 ## How we plan to achieve our goals
-TODO
+
+
 
 <Callout type="error">
   The site **must** be built at least once so Pagefind can index the content.
