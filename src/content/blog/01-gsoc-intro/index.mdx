@@ -41,7 +41,7 @@ These kinds of problems, **"we need AI to do x in order to do y"** have already 
 
 Let's say that we want an agent that can automatically triage customer support tickets.
 We can just poll whatever API we're interested in, or if the API supports [webhooks](https://en.wikipedia.org/wiki/Webhook), have that API send events to us,
-then call some LLM and do something with the output. If we're feeling extra fancy, we can use one of the popular agent/agent orchestration frameworks like [LangChain](https://github.com/langchain-ai/langchain) for the second part.
+then call some LLM and do something with the output. If we're feeling extra fancy, we can use one of the popular agent/agent orchestration frameworks like [LangChain/LangGraph](https://github.com/langchain) for the second part.
 Finally, we can demo the result and everyone's happy at the end of the day.
 
 Okay, then what's the issue?
@@ -68,7 +68,7 @@ This includes conditions as simple as **"trigger an agent when a new user is reg
 to conditions such as **"trigger an agent when the issue severity is sev-3 or lower and the affected service has at least 3 failed deployment rollbacks in the last 24 hours and error rates across any downstream services have increased by more than 20% from the previous hour"**.
 Ideally, we  want a solution that can support arbitrary conditions as the business evolves.
 
-- What if we need agents to interact with a variety of legacy and existing systems (databases, streaming platforms)?
+- What if we need agents to consume from and interact with a variety of legacy and existing systems (databases, streaming platforms, other systems)?
 We don't want to modify existing systems without a very good reason to do so.
 If we absolutely need to modify existing systems, we want to make minimal changes to them.
 
@@ -85,15 +85,34 @@ However, the two most relevant to us (and the ones that I'll be integrating) are
 
 ### Drasi
 
-[Drasi](https://drasi.io/) is a "change data processing" platform, which allows us to build pipelines that track business-level events **across** disparate data sources.
+Remember the problems that we mentioned earlier about triggering agents when a complex set of business conditions is met and having them consume from legacy and existing systems?
+[Drasi](https://drasi.io/) is a "change data processing" platform that solves these problems, allowing us to build pipelines that track business-level events **across** disparate data sources.
+
 There are various alternatives in this space such as polling, custom [change data capture](https://en.wikipedia.org/wiki/Change_data_capture) pipelines using Debezium/Apache Kafka/Apache Flink (or Spark),
 or "one-way sync"/"bidirectional sync" platforms such as Airbyte or Zapier. In comparison, Drasi eliminates the "stale data" vs. "unnecessary load" tradeoff associated with polling,
-exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks across those sources, as well as the actions it takes.
+exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks across those sources, the actions it takes, and the environment it is deployed in.
+
 You can read more about its concepts [here](https://drasi.io/concepts/), but for our purposes, we just need to know that we can point it to a variety of data sources (MySQL/PostgreSQL databases, Kubernetes cluster API servers, etc.),
-define the events using standard [graph query syntax](https://en.wikipedia.org/wiki/Graph_Query_Language#), and choose how to interact with other services (via HTTP, gRPC, pub/sub, or cloud service connectors).
+define the events using standard [graph query syntax](https://en.wikipedia.org/wiki/Graph_Query_Language#), and choose how to interact with other services (via HTTP, gRPC, Dapr publish/subscribe, or cloud service connectors).
+For our project, Drasi provides the connection between our data and our agents.
 
 ### Dapr Agents
-To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to understand the [Dapr](https://dapr.io/) ecosystem first.
+
+To understand the value of [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/), we need to also understand the [Dapr](https://dapr.io/) ecosystem.
+Simply put, Dapr provides [developer-centric APIs, known as "building blocks"](https://docs.dapr.io/developing-applications/building-blocks/), for common distributed systems problems such as inter-service communication, state management, publish/subscribe, and [concurrent computation](https://en.wikipedia.org/wiki/Actor_model).
+These APIs are used in application code (often through the [corresponding language SDK](https://docs.dapr.io/developing-applications/sdks/)), allowing the application to delegate the "dirty work" to the [Dapr runtime](https://docs.dapr.io/concepts/overview/#sidecar-architecture).
+Many organizations have adopted Dapr to increase developer velocity, including Microsoft, IBM, NASA, and Grafana. 
+In fact, Drasi also leverages Dapr's service invocation, publish/subscribe, and state management capabilities, and integrates with Dapr through its 
+[state store connector](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-sync-dapr-statestore-reaction/), and 
+[publish/subscribe connector](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/) (keep this one in mind for later).
+To provide an even better developer experience for developers, some of these APIs have been used to implement higher-level frameworks, mainly workflows and Dapr Agents (which itself uses workflows). 
+
+Now that we understand how Dapr Agents fits into the Dapr ecosystem, how is it different from competing agent frameworks such as [LangChain/LangGraph](https://github.com/langchain) and [Pydantic AI](https://github.com/pydantic/pydantic-ai), 
+or dedicated workflow orchestration frameworks such as [Temporal](https://github.com/temporalio/temporal) or [Apache Airflow](https://github.com/apache/airflow)? 
+A previous [Diagrid blog post](https://www.diagrid.io/blog/the-agentic-spectrum-why-its-not-agents-vs-workflows) explains this in more detail, but Dapr Agents effectively treats AI and distributed systems as first-class concerns, 
+so developers don't need to compromise on system qualities or compose multiple frameworks with different philosophies and roadmaps.
+
+If you're interested in the architecture of Dapr Agents, you can find it [here](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/), but all we need to know is that Dapr Agents drives our AI workflows to completion while handling virtually all of the AI systems problems mentioned earlier.
 
 ## How we plan to achieve our goals
 TODO
