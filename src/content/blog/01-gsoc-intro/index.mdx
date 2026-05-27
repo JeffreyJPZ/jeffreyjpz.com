@@ -95,7 +95,7 @@ or "one-way sync"/"bidirectional sync" platforms such as Airbyte or Zapier. In c
 exposes a developer-friendly API, while remaining flexible with the data sources it consumes from, the types of changes it tracks across those sources, the actions it takes, and the environment it's deployed in.
 
 You can read more about Drasi's concepts [here](https://drasi.io/concepts/), but for our purposes, we just need to know that we can point it to a variety of data sources (MySQL/PostgreSQL databases, Kubernetes cluster API servers, etc.),
-define the events we want to track using standard [graph query syntax](https://en.wikipedia.org/wiki/Graph_Query_Language#) (by modelling data sources as a continuously updating graph projection), and choose how to interact with other services (via HTTP, gRPC, Dapr publish/subscribe, or cloud service connectors).
+define the events we want to track using standard [graph query syntax](https://en.wikipedia.org/wiki/Graph_Query_Language#) (by modelling data sources as a single, continuously updating "virtual" graph), and choose how to interact with other services (via HTTP, gRPC, Dapr publish/subscribe, or cloud service connectors).
 For our project, Drasi provides the connection between our data and our agents.
 
 ### Dapr Agents (and Dapr)
