@@ -1,3 +1,3 @@
-# jeffreyjpz.com
+# [jeffreyjpz.com](https://jeffreyjpz.com)
 
 Personal blog
