@@ -1,0 +1,45 @@
+---
+title: "Trigger durable AI workflows from business events"
+description: "Google Summer of Code 2026 midterm — Drasi and Dapr"
+date: "2026-07-06"
+---
+
+import Callout from "@/components/Callout.astro";
+
+---
+
+This is the second blog post in the Google Summer of Code 2026 series and serves as the midterm report.
+View the previous blog post [here](https://jeffreyjpz.com/blog/01-gsoc-intro/).
+
+Over the last few months since its v1.0 release, Dapr Agents has grown significantly thanks to the work of its maintainers and many contributors.
+While its core capabilities — durable execution, orchestration, and tool calling — have solidified,
+there is still plenty of work ahead to help increase the adoption of scalable, secure, and long-running agentic systems
+in new and existing architectures alike. This post provides an overview of some of the recent (and planned) features
+in Dapr Agents, and how they fit into the bigger picture.
+
+## Making Dapr Agents more flexible and extensible
+
+One factor that helps drive adoption of a framework is flexibility. Each organization has its own very specific use cases along with processes and regulations that it must follow,
+teams have different responsibilities, and developers have individual skillsets and preferences
+(often approaching biases). However, frameworks need to abstract certain details and be opinionated to some degree to be worth considering in the first place (for example, Dapr Agents'
+core capabilities can be considered "opinionated"). Ultimately, a framework needs to straddle the fence between being flexible and being opinionated to capture the widest audience.
+
+In Dapr Agents, flexibility was originally limited to pluggable LLM providers and storage backends for agents.
+With recent features, this flexibility now extends to virtually the entire agent lifecycle:
+- [Callbacks (activations)](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-extensions/): allows arbitrary sources to trigger agent executions, including publish/subscribe messages and webhooks
+- [Hooks](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-hooks/): allows policies and human-in-the-loop intervention at key stages during agent execution, mainly for LLM and tool calls
+- Plugins (in-progress): augments agents with custom state and run complex logic at key stages during agent execution (think of this as an even more flexible version of hooks)
+- Extensions (in-progress): provides officially-maintained callbacks, hooks, and plugins through developer-friendly interfaces for common use cases
+
+An ecosystem of robust, pre-built extensions greatly simplifies agentic systems development, especially as agents are entrusted with more complex
+tasks, are deployed at scale, and become long-running, autonomous systems.
+
+If there is an extension that you would like to see or contribute, feel free to raise an issue in the [Dapr Agents repository](https://github.com/dapr/dapr-agents).
+
+## Drasi extension for Dapr Agents
+
+TODO
+
+## Future look — better horizontal scaling for Dapr Agents apps
+
+TODO
