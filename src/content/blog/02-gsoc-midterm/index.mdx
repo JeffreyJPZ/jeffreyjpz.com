@@ -14,32 +14,124 @@ View the previous blog post [here](https://jeffreyjpz.com/blog/01-gsoc-intro/).
 Over the last few months since its v1.0 release, Dapr Agents has grown significantly thanks to the work of its maintainers and many contributors.
 While its core capabilities — durable execution, orchestration, and tool calling — have solidified,
 there is still plenty of work ahead to help increase the adoption of scalable, secure, and long-running agentic systems
-in new and existing architectures alike. This post provides an overview of some of the recent (and planned) features
+in new and existing architectures alike. This post provides an overview of some of the recent (and upcoming) features
 in Dapr Agents, and how they fit into the bigger picture.
 
 ## Making Dapr Agents more flexible and extensible
 
 One factor that helps drive adoption of a framework is flexibility. Each organization has its own very specific use cases along with processes and regulations that it must follow,
-teams have different responsibilities, and developers have individual skillsets and preferences
-(often approaching biases). However, frameworks need to abstract certain details and be opinionated to some degree to be worth considering in the first place (for example, Dapr Agents'
-core capabilities can be considered "opinionated"). Ultimately, a framework needs to straddle the fence between being flexible and being opinionated to capture the widest audience.
+teams have different responsibilities, and developers have individual skillsets and preferences. However, frameworks need to abstract certain details and be opinionated to some degree to be worth considering in the first place (for example, Dapr Agents'
+core capabilities can be considered "opinionated"). To capture the widest audience, a framework needs to straddle the fence between being flexible and being opinionated.
 
-In Dapr Agents, flexibility was originally limited to pluggable LLM providers and storage backends for agents.
-With recent features, this flexibility now extends to virtually the entire agent lifecycle:
+In Dapr Agents, flexibility for agents was originally limited to pluggable LLM providers and storage backends.
+With recent and upcoming features, this flexibility now extends to virtually the entire agent lifecycle:
 - [Callbacks (activations)](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-extensions/): allows arbitrary sources to trigger agent executions, including publish/subscribe messages and webhooks
-- [Hooks](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-hooks/): allows policies and human-in-the-loop intervention at key stages during agent execution, mainly for LLM and tool calls
-- Plugins (in-progress): augments agents with custom state and run complex logic at key stages during agent execution (think of this as an even more flexible version of hooks)
+- [Hooks](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-hooks/): allows for policies and human-in-the-loop intervention at key stages during agent execution, mainly for LLM and tool calls
+- Plugins (in-progress): augments agents with custom state and the ability to run complex logic at key stages during agent execution (think of this as an even more flexible version of hooks)
 - Extensions (in-progress): provides officially-maintained callbacks, hooks, and plugins through developer-friendly interfaces for common use cases
 
 An ecosystem of robust, pre-built extensions greatly simplifies agentic systems development, especially as agents are entrusted with more complex
 tasks, are deployed at scale, and become long-running, autonomous systems.
 
-If there is an extension that you would like to see or contribute, feel free to raise an issue in the [Dapr Agents repository](https://github.com/dapr/dapr-agents).
+If there is an extension that you would like to see or contribute, feel free to [raise an issue in the Dapr Agents repository](https://github.com/dapr/dapr-agents).
 
 ## Drasi extension for Dapr Agents
 
-TODO
+Dapr Agents' first officially-maintained extension aims to simplify the integration of Dapr Agents into event-driven microservice architectures.
+
+[Event-driven communication](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/#message-driven-communication) is a core principle of Dapr Agents,
+making it naturally suited for agentic workloads that need to react to events produced by external systems.
+In some cases, events can be be readily consumed from existing services or third-party providers such as GitHub, Jira, or Slack, requiring little to no overhaul of existing systems.
+However, an issue arises when events are less well-defined high-level and complex — an event that is produced
+These are not typically supported by providers, and if they exist at all, existing services may not be equipped to involve domains across multiple services (as is the case in microservice architectures)
+[Patterns that exist](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs) to address this issue
+raw, low-level changes in source systems — databases, streaming platforms, and more — into high-level business events agents can actually consume, which is challenging to implement from scratch.
+Drasi, a CNCF project, fills that gap: it detects changes in configured sources and emits a high-level business event only when a user-defined condition (query) is satisfied, giving Dapr Agents a direct path from source system to triggered agent.
+
+A minimal Dapr Agents application is only a handful of lines of code:
+
+```python
+import asyncio
+from typing import Any
+
+from dapr_agents import AgentRunner, DurableAgent, DaprChatClient
+from dapr_agents.agents.configs import (
+    AgentExecutionConfig,
+    AgentMemoryConfig,
+    AgentPubSubConfig,
+    AgentStateConfig,
+)
+from dapr_agents.agents.schemas import TriggerAction
+from dapr_agents.memory import ConversationDaprStateMemory
+from dapr_agents.storage.daprstores.stateservice import StateStoreService
+from dapr_agents.workflow.utils.core import wait_for_shutdown
+
+from dapr_agents.ext.drasi import DrasiChangeEvent, drasi_trigger
+
+
+def make_task(event: DrasiChangeEvent, ctx: Any) -> TriggerAction:
+    return TriggerAction(task=f"Create a purchase order with the following data:\n\n{event.payload.after.model_dump()}")
+
+
+async def main() -> None:
+    agent = DurableAgent(
+        name="InventoryAgent",
+        role="Expert procurement assistant capable of reacting to stock events",
+        goal="Create purchase orders for stock based on stock events.",
+        instructions="Create purchase orders, calculating the order quantity dynamically.",
+        llm=DaprChatClient(component_name="llm-provider"),
+        memory=AgentMemoryConfig(
+            store=ConversationDaprStateMemory(store_name="agent-memory"),
+        ),
+        state=AgentStateConfig(
+            store=StateStoreService(store_name="agent-runtime"),
+        ),
+        execution=AgentExecutionConfig(max_iterations=1),
+        pubsub=AgentPubSubConfig(
+            pubsub_name=AGENT_PUBSUB_COMPONENT,
+            agent_topic="inventory-agent",
+        ),
+    )
+
+    # Register Drasi query subscriptions
+    drasi_trigger(
+        agent,
+        query_id="critical-stock-event-query",
+        task_mapper=make_task,
+        operations="i",
+    )
+    drasi_trigger(
+        agent,
+        query_id="low-stock-event-query",
+        task_mapper=make_task,
+        operations="i",
+    )
+
+    runner = AgentRunner()
+    try:
+        runner.subscribe(agent)
+        await wait_for_shutdown()
+    finally:
+        runner.shutdown(agent)
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+```
+
+You can [try out the full example for yourself in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s).
+
+Feedback and contributions are always welcome — [raise an issue in the Dapr Agents repository](https://github.com/dapr/dapr-agents)
+or [learn how to contribute to the Drasi extension](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/ext/dapr-agents-ext-drasi).
 
 ## Future look — better horizontal scaling for Dapr Agents apps
 
-TODO
+The next step for the Drasi extension is better support long-running, autonomous agents.
+Using the inventory management scenario, imagine now that products rarely reach low or critical levels of stock.
+An agent receives a Drasi event
+and it decides that it needs to suspend for an indefinite amount of time — this could be several hours, several days, or even several weeks.
+The agent "goes to sleep", but the app itself continues to run and consume resources even if there are no incoming events.
+Currently, Dapr Agents' support for metrics is fairly limited
