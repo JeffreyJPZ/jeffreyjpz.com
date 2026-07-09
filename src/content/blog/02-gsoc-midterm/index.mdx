@@ -273,7 +273,7 @@ Depending on the received event, the agent can either complete successfully or e
 Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors)
 the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time (allowing for "scale-to-zero" agents).
 However, the agent app itself continues to run and consume resources even if there are no incoming orders (demand may fluctuate), and with multiple instances of an agent app,
-the amount of wasted compute and/or resources can add up quickly. To address this, Dapr Agents should support scaling based on metrics such as the rate of incoming events,
+the amount of wasted compute/resources can add up quickly. To address this, Dapr Agents should support scaling based on metrics such as the rate of incoming events,
 enabling not just scale-to-zero agents, but scale-to-zero workloads.
 
 ## How to get involved
