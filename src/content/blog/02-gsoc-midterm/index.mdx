@@ -44,12 +44,12 @@ making it naturally suited for agentic workloads that need to react to events pr
 In some cases, events can be readily consumed from internal services or third-party providers such as GitHub, Jira, or Slack, requiring little to no modification of existing consumers — in this case, agents.
 For example, you could have a simple triage/SRE agent that assigns severity levels to incoming Jira tickets and decides whether to escalate the ticket based on its severity:
 
-{/* diagram */}
+TODO: diagram
 
 This is fine for common events, however, in certain situations you might want agents to be triggered by specific *domain events* with the exact context needed to take action — instead of a generic "order created" event,
 such events could be "a customer's order was placed but has been stuck in 'processing' for a week due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details":
 
-{/* diagram */}
+TODO: diagram
 
 These kinds of events are complex: they may involve multiple domains, have a temporal dimension, or depend on previous events — needs that are unlikely to be supported by any individual service or third-party provider.
 Building custom pipelines that track raw data changes scattered across source systems — databases, streaming platforms, providers, and more — and packaging them into high-level business events agents can actually consume is a **hard problem**;
@@ -62,7 +62,7 @@ Its architecture is fairly simple:
 - **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit events when those conditions are satisfied
 - **Reactions** to push events to downstream consumers (similar to *sinks* in event processing terminology)
 
-{/* diagram */}
+TODO: diagram
 
 The best part about Drasi is its flexibility; it supports multiple deployment models
 (as a Rust library for embedded or edge services, as a binary for local development or containerized services, or as Kubernetes deployments with a fully-fledged control plane).
