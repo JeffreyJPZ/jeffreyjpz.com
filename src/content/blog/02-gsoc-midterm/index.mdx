@@ -1,0 +1,283 @@
+---
+title: "Trigger durable AI workflows from business events"
+description: "Google Summer of Code 2026 midterm — Drasi and Dapr"
+date: "2026-07-06"
+---
+
+import Callout from "@/components/Callout.astro";
+
+---
+
+This is the second blog post in the Google Summer of Code 2026 series and serves as the midterm report.
+View the previous blog post [here](https://jeffreyjpz.com/blog/01-gsoc-intro/).
+
+Over the last few months since its v1.0 release, Dapr Agents has grown significantly thanks to the work of its maintainers and many contributors.
+While its core capabilities — durable execution, orchestration, and tool calling — have solidified,
+there is still plenty of work ahead to help increase the adoption of scalable, secure, and long-running agentic systems
+in new and existing architectures alike. This post provides an overview of some of the recent (and upcoming) features
+in Dapr Agents, and how they fit into the bigger picture.
+
+## Making Dapr Agents more flexible and extensible
+
+One factor that helps drive adoption of a framework is flexibility. Each organization has its own very specific use cases along with processes and regulations that it must follow,
+teams have different responsibilities, and developers have individual skillsets and preferences. However, frameworks need to abstract certain details and be opinionated to some degree to be worth considering in the first place (for example, Dapr Agents'
+core capabilities can be considered "opinionated"). To capture the widest audience, a framework needs to straddle the fence between being flexible and being opinionated.
+
+In Dapr Agents, flexibility for agents was originally limited to pluggable LLM providers and storage backends.
+With recent and upcoming features, this flexibility now extends to virtually the entire agent lifecycle:
+- [**Callbacks (activations)**](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-extensions/) to allow arbitrary sources to trigger agent executions, including publish/subscribe messages and webhooks
+- [**Hooks**](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-hooks/) to allow for policies and human-in-the-loop intervention at key stages during agent execution, mainly for LLM and tool calls
+- **Plugins (in-progress)** to augment agents with custom state and the ability to run complex logic at key stages during agent execution (think of this as an even more flexible version of hooks)
+- **Extensions (in-progress)** to provide officially-maintained callbacks, hooks, and plugins through developer-friendly interfaces for common use cases
+
+An ecosystem of robust, pre-built extensions greatly simplifies agentic systems development, especially as agents are entrusted with more complex
+tasks, are deployed at scale, and become long-running, autonomous systems.
+
+If there is an extension that you would like to see or contribute, feel free to [raise an issue in the Dapr Agents repository](https://github.com/dapr/dapr-agents).
+
+## Drasi extension for Dapr Agents
+
+Dapr Agents' first officially-maintained extension aims to simplify the integration of Dapr Agents into event-driven microservice architectures.
+[Event-driven communication](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/#message-driven-communication) is a core principle of Dapr Agents,
+making it naturally suited for agentic workloads that need to react to events produced by external systems.
+
+In some cases, events can be readily consumed from internal services or third-party providers such as GitHub, Jira, or Slack, requiring little to no modification of existing consumers — in this case, agents.
+For example, you could have a simple triage/SRE agent that assigns severity levels to incoming Jira tickets and decides whether to escalate the ticket based on its severity:
+
+TODO: diagram
+
+This is fine for common events, however, in certain situations you might want agents to be triggered by specific *domain events* with the exact context needed to take action — instead of a generic "order created" event,
+such events could be "a customer's order was placed but has been stuck in 'processing' for a week due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details":
+
+TODO: diagram
+
+These kinds of events are complex: they may involve multiple domains, have a temporal dimension, or depend on previous events — needs that are unlikely to be supported by any individual service or third-party provider.
+Building custom pipelines that track raw data changes scattered across source systems — databases, streaming platforms, providers, and more — and packaging them into high-level business events agents can actually consume is a **hard problem**;
+it requires a significant amount of development labor and distributed systems expertise, and maintaining that infrastructure can be operationally complex.
+
+[Drasi](https://drasi.io/), a **CNCF Sandbox** project, aims to fill this change detection gap: it can track changes from a variety of sources and emit a high-level business event only when a user-defined condition is satisfied.
+
+Its architecture is fairly simple:
+- **Sources** to ingest data from existing systems (similar to *sources* in event processing terminology)
+- **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit events when those conditions are satisfied
+- **Reactions** to push events to downstream consumers (similar to *sinks* in event processing terminology)
+
+TODO: diagram
+
+The best part about Drasi is its flexibility; it supports multiple deployment models
+(as a Rust library for embedded or edge services, as a binary for local development or containerized services, or as Kubernetes deployments with a fully-fledged control plane).
+Every part of its architecture is pluggable and can be customized to your own needs (you can even contribute new sources and reactions).
+Queries are not written in an obscure, domain-specific language — Drasi supports industry-standard graph query languages such as Cypher and GQL.
+
+With Drasi and the extension for Dapr Agents, the amount of effort necessary to build an end-to-end change detection pipeline and agents to react to those events is reduced significantly.
+The following file snippets are taken from the [Drasi example in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s),
+and represent the sum total of all the custom configuration and application code:
+
+**Source**
+
+`products.yaml`
+
+```yaml
+apiVersion: v1
+kind: Source
+name: products-source
+spec:
+  kind: PostgreSQL
+  properties:
+    host: postgres.default.svc.cluster.local
+    port: 5432
+    user: postgres
+    password: postgres
+    database: postgres
+    ssl: false
+    tables:
+      - public.products
+```
+
+**Queries**
+
+`critical-stock-event.yaml`
+
+```yaml
+apiVersion: v1
+kind: ContinuousQuery
+name: critical-stock-event-query
+spec:
+  mode: query
+  sources:    
+    subscriptions:
+      - id: products-source
+        nodes:
+          - sourceLabel: products
+  query: >
+    MATCH
+        (p:products)
+    WHERE
+        p.stock_on_hand = 0
+    RETURN
+        p.product_id AS productId,
+        p.product_name AS productName,
+        p.product_description AS productDescription,
+        p.stock_on_hand AS stockOnHand,
+        p.low_stock_threshold AS lowStockThreshold
+```
+
+`low-stock-event.yaml`
+
+```yaml
+apiVersion: v1
+kind: ContinuousQuery
+name: low-stock-event-query
+spec:
+  mode: query
+  sources:    
+    subscriptions:
+      - id: products-source
+        nodes:
+          - sourceLabel: products
+  query: >
+    MATCH
+        (p:products)
+    WHERE
+        p.stock_on_hand <= p.low_stock_threshold AND p.stock_on_hand > 0
+    RETURN
+        p.product_id AS productId,
+        p.product_name AS productName,
+        p.product_description AS productDescription,
+        p.stock_on_hand AS stockOnHand,
+        p.low_stock_threshold AS lowStockThreshold
+```
+
+**Reaction**
+
+`inventory-events-publisher.yaml`
+
+```yaml
+kind: Reaction
+apiVersion: v1
+name: inventory-events-publisher
+spec:
+  kind: PostDaprPubSub
+  queries:
+    low-stock-event-query: >
+      {
+        "pubsubName": "drasi-pubsub",
+        "topicName": "drasi-events-low-stock-event-query",
+        "format": "Unpacked",
+        "skipControlSignals": true
+      }
+    
+    critical-stock-event-query: >
+      {
+        "pubsubName": "drasi-pubsub",
+        "topicName": "drasi-events-critical-stock-event-query",
+        "format": "Unpacked",
+        "skipControlSignals": true
+      }
+```
+
+**Agent App**
+
+With the Drasi extension, the "glue code" for connecting an agent to Drasi queries is only a handful of lines:
+
+```python
+import asyncio
+from typing import Any
+
+from dapr_agents import AgentRunner, DurableAgent, DaprChatClient
+from dapr_agents.agents.configs import (
+    AgentExecutionConfig,
+    AgentMemoryConfig,
+    AgentPubSubConfig,
+    AgentStateConfig,
+)
+from dapr_agents.agents.schemas import TriggerAction
+from dapr_agents.memory import ConversationDaprStateMemory
+from dapr_agents.storage.daprstores.stateservice import StateStoreService
+from dapr_agents.workflow.utils.core import wait_for_shutdown
+
+from dapr_agents.ext.drasi import DrasiChangeEvent, drasi_trigger
+
+
+def make_task(event: DrasiChangeEvent, ctx: Any) -> TriggerAction:
+    return TriggerAction(task=f"Create a purchase order with the following data:\n\n{event.payload.after.model_dump()}")
+
+
+async def main() -> None:
+    agent = DurableAgent(
+        name="InventoryAgent",
+        role="Expert procurement assistant capable of reacting to stock events",
+        goal="Create purchase orders for stock based on stock events.",
+        instructions="Create purchase orders, calculating the order quantity dynamically.",
+        llm=DaprChatClient(component_name="llm-provider"),
+        memory=AgentMemoryConfig(
+            store=ConversationDaprStateMemory(store_name="agent-memory"),
+        ),
+        state=AgentStateConfig(
+            store=StateStoreService(store_name="agent-runtime"),
+        ),
+        execution=AgentExecutionConfig(max_iterations=1),
+        pubsub=AgentPubSubConfig(
+            pubsub_name=AGENT_PUBSUB_COMPONENT,
+            agent_topic="inventory-agent",
+        ),
+    )
+
+    # Register Drasi query subscriptions
+    drasi_trigger(
+        agent,
+        query_id="critical-stock-event-query",
+        task_mapper=make_task,
+        operations="i",
+    )
+    drasi_trigger(
+        agent,
+        query_id="low-stock-event-query",
+        task_mapper=make_task,
+        operations="i",
+    )
+
+    runner = AgentRunner()
+    try:
+        runner.subscribe(agent)
+        await wait_for_shutdown()
+    finally:
+        runner.shutdown(agent)
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+```
+
+You can [try out the full example for yourself in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s).
+
+## Future look: dynamic Drasi query subscriptions and better horizontal scaling for Dapr Agents
+
+Currently, Drasi query subscriptions are "static" and embedded in application code, meaning that the agent (and the developer) has to know what queries are available
+and include all potentially necessary queries before the agent app starts.
+This poses a problem especially in environments where teams own separate services, as agent developers would have to be in constant communication with teams managing Drasi services to know the exact queries that exist at any given point in time.
+To prevent the need for "ad-hoc API contracts", the next step for the Drasi extension is to expose Drasi query subscriptions as [MCP tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
+so agents can discover and subscribe to the queries that they need — this also happens to support long-running, autonomous agents as a byproduct.
+
+Returning to the marketplace order issue event mentioned above
+("a customer's order was placed but has been stuck in 'processing' for two weeks due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details"),
+imagine now that the event is part of a larger, marketplace order fulfillment workflow:
+1. An order service receives a customer order event and initiates a workflow.
+2. The workflow verifies the order, checks for fraud, initiates payment, and then delegates troubleshooting to a separate agent service.
+3. The agent starts up and immediately suspends, waiting for the payment to successfully complete, or for an issue event from Drasi.
+This step can last for several hours, several days, or even several weeks.
+Depending on the received event, the agent can either complete successfully or escalate, calling other agents and workflows as necessary.
+
+Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors)
+the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time.
+However, the agent app itself continues to run and consume resources even if there are no incoming orders (demand could be inconsistent). With multiple instances of an agent app,
+the amount of wasted compute and/or resources can add up quickly, which necessitates a way to scale Dapr Agents based on metrics such as the rate of incoming events.
+
+## How to get involved
+
+Feedback and contributions are always welcome. Join the [Dapr discord](https://discord.com/invite/dapr-778680217417809931),
+[raise an issue in the Dapr Agents repository](https://github.com/dapr/dapr-agents),
+or [learn how to contribute to the Drasi extension](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/ext/dapr-agents-ext-drasi).
