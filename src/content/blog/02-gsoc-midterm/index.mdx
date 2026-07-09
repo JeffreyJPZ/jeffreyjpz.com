@@ -5,6 +5,10 @@ date: "2026-07-08"
 ---
 
 import Callout from "@/components/Callout.astro";
+import { Image } from "astro:assets";
+
+import triageAgent from './triage-agent.png';
+import troubleshootingAgent from './troubleshooting-agent.png';
 
 ---
 
@@ -23,7 +27,7 @@ One factor that helps drive adoption of a framework is flexibility. Each organiz
 teams have different responsibilities, and developers have individual skillsets and preferences. However, frameworks need to abstract certain details and be opinionated to some degree to be worth considering in the first place (for example, Dapr Agents'
 core capabilities can be considered "opinionated"). To capture the widest audience, a framework needs to straddle the fence between being flexible and being opinionated.
 
-In Dapr Agents, flexibility for agents was originally limited to pluggable LLM providers and storage backends.
+In Dapr Agents, flexibility for agents was mainly limited to pluggable LLM providers and storage backends.
 With recent and upcoming features, this flexibility now extends to virtually the entire agent lifecycle:
 - [**Callbacks (activations)**](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-extensions/) to allow arbitrary sources to trigger agent executions, including publish/subscribe messages and webhooks
 - [**Hooks**](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-hooks/) to allow for policies and human-in-the-loop intervention at key stages during agent execution, mainly for LLM and tool calls
@@ -42,14 +46,18 @@ Dapr Agents' first officially-maintained extension aims to simplify the integrat
 making it naturally suited for agentic workloads that need to react to events produced by external systems.
 
 In some cases, events can be readily consumed from internal services or third-party providers such as GitHub, Jira, or Slack, requiring little to no modification of existing consumers — in this case, agents.
-For example, you could have a simple triage/SRE agent that assigns severity levels to incoming Jira tickets and decides whether to escalate the ticket based on its severity:
+For example, you could have a triage/SRE agent that validates incoming tickets and assigns severity levels based on their content:
 
-TODO: diagram
+<figure>
+  <Image src={triageAgent} alt="Triage agent" inferSize />
+</figure>
 
-This is fine for common events, however, in certain situations you might want agents to be triggered by specific *domain events* with the exact context needed to take action — instead of a generic "order created" event,
-such events could be "a customer's order was placed but has been stuck in 'processing' for a week due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details":
+This works well for simple events, however, in certain situations you might want agents to be triggered by specific *domain events* with the exact context needed to take action — instead of a generic "order created" event,
+these events could be "a customer's order was placed but has been stuck in 'processing' for a week due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details":
 
-TODO: diagram
+<figure>
+  <Image src={troubleshootingAgent} alt="Troubleshooting agent" inferSize />
+</figure>
 
 These kinds of events are complex: they may involve multiple domains, have a temporal dimension, or depend on previous events — needs that are unlikely to be supported by any individual service or third-party provider.
 Building custom pipelines that track raw data changes scattered across source systems — databases, streaming platforms, providers, and more — and packaging them into high-level business events agents can actually consume is a **hard problem**;
@@ -62,16 +70,29 @@ Its architecture is fairly simple:
 - **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit events when those conditions are satisfied
 - **Reactions** to push events to downstream consumers (similar to *sinks* in event processing terminology)
 
-TODO: diagram
+It supports simple pipelines with a single source and a single consumer:
+
+<figure>
+  <Image src="https://drasi.io/concepts/overview/simple-end-to-end.png" alt="Simple end-to-end Drasi architecture" inferSize />
+  <figcaption>Credit: <a href="https://drasi.io/">Drasi documentation</a></figcaption>
+</figure>
+
+Or more complex pipelines with multiple sources and multiple consumers:
+
+<figure>
+  <Image src="https://drasi.io/concepts/overview/reactions-component.png" alt="Complex end-to-end Drasi architecture" inferSize />
+  <figcaption>Credit: <a href="https://drasi.io/">Drasi documentation</a></figcaption>
+</figure>
 
 The best part about Drasi is its flexibility; it supports multiple deployment models
 (as a Rust library for embedded or edge services, as a binary for local development or containerized services, or as Kubernetes deployments with a fully-fledged control plane).
 Every part of its architecture is pluggable and can be customized to your own needs (you can even contribute new sources and reactions).
 Queries are not written in an obscure, domain-specific language — Drasi supports industry-standard graph query languages such as Cypher and GQL.
 
-With Drasi and the extension for Dapr Agents, the amount of effort necessary to build an end-to-end change detection pipeline and agents to react to those events is reduced significantly.
-The following file snippets are taken from the [Drasi example in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s),
-and represent the sum total of all the custom configuration and application code:
+With Drasi and the extension for Dapr Agents, the amount of configuration and application code needed to build an end-to-end change detection pipeline
+— and have agents to react to those events — is reduced significantly.
+The [Drasi example in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s)
+demonstrates this with a minimal amount of configuration and application code, shown below for your convenience:
 
 **Source**
 
@@ -178,7 +199,9 @@ spec:
 
 **Agent App**
 
-With the Drasi extension, the "glue code" for connecting an agent to Drasi queries is only a handful of lines:
+`app.py`
+
+The "glue code" for connecting an agent to Drasi queries is only a handful of lines:
 
 ```python
 import asyncio
@@ -273,8 +296,8 @@ Depending on the received event, the agent can either complete successfully or e
 Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors)
 the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time (allowing for "scale-to-zero" agents).
 However, the agent app itself continues to run and consume resources even if there are no incoming orders (demand may fluctuate), and with multiple instances of an agent app,
-the amount of wasted compute/resources can add up quickly. To address this, Dapr Agents should support scaling based on metrics such as the rate of incoming events,
-enabling not just scale-to-zero agents, but scale-to-zero workloads.
+the amount of wasted compute/resources can add up quickly. To address this, Dapr Agents should support scaling based on metrics such as the number of active, **non-suspended** workflows
+and/or the rate of incoming events, enabling not just scale-to-zero agents, but scale-to-zero workloads.
 
 ## How to get involved
 
