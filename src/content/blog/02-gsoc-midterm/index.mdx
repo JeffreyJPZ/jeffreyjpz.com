@@ -254,16 +254,15 @@ if __name__ == "__main__":
 
 You can [try out the full example for yourself in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s).
 
-## Future look: dynamic Drasi query subscriptions and better horizontal scaling for Dapr Agents
+## Future look: dynamic Drasi query subscriptions and scale-to-zero for Dapr Agents workloads
 
-Currently, Drasi query subscriptions are "static" and embedded in application code, meaning that the agent (and the developer) has to know what queries are available
+Currently, Drasi query subscriptions are "static" and embedded in application code, meaning that the agent developer has to know what queries are available
 and include all potentially necessary queries before the agent app starts.
 This poses a problem especially in environments where teams own separate services, as agent developers would have to be in constant communication with teams managing Drasi services to know the exact queries that exist at any given point in time.
 To prevent the need for "ad-hoc API contracts", the next step for the Drasi extension is to expose Drasi query subscriptions as [MCP tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
 so agents can discover and subscribe to the queries that they need — this also happens to support long-running, autonomous agents as a byproduct.
 
-Returning to the marketplace order issue event mentioned above
-("a customer's order was placed but has been stuck in 'processing' for two weeks due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details"),
+Returning to the marketplace order issue event mentioned above ("a customer's order was placed..."),
 imagine now that the event is part of a larger, marketplace order fulfillment workflow:
 1. An order service receives a customer order event and initiates a workflow.
 2. The workflow verifies the order, checks for fraud, initiates payment, and then delegates troubleshooting to a separate agent service.
@@ -272,9 +271,10 @@ This step can last for several hours, several days, or even several weeks.
 Depending on the received event, the agent can either complete successfully or escalate, calling other agents and workflows as necessary.
 
 Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors)
-the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time.
-However, the agent app itself continues to run and consume resources even if there are no incoming orders (demand could be inconsistent). With multiple instances of an agent app,
-the amount of wasted compute and/or resources can add up quickly, which necessitates a way to scale Dapr Agents based on metrics such as the rate of incoming events.
+the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time (allowing for "scale-to-zero" agents).
+However, the agent app itself continues to run and consume resources even if there are no incoming orders (demand may fluctuate), and with multiple instances of an agent app,
+the amount of wasted compute and/or resources can add up quickly. To address this, Dapr Agents should support scaling based on metrics such as the rate of incoming events,
+enabling not just scale-to-zero agents, but scale-to-zero workloads.
 
 ## How to get involved
 
