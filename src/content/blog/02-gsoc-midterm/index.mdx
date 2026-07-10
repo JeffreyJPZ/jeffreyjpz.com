@@ -27,7 +27,7 @@ One factor that helps drive adoption of a framework is flexibility. Each organiz
 teams have different responsibilities, and developers have individual skillsets and preferences. However, frameworks need to abstract certain details and be opinionated to some degree to be worth considering in the first place (for example, Dapr Agents'
 core capabilities can be considered "opinionated"). To capture the widest audience, a framework needs to straddle the fence between being flexible and being opinionated.
 
-In Dapr Agents, flexibility for agents was mainly limited to pluggable LLM providers and storage backends.
+In Dapr Agents, flexibility for agents was previously limited to "core" agent components: LLM providers, memory backends, and tools.
 With recent and upcoming features, this flexibility now extends to virtually the entire agent lifecycle:
 - [**Callbacks (activations)**](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-extensions/) to allow arbitrary sources to trigger agent executions, including publish/subscribe messages and webhooks
 - [**Hooks**](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-hooks/) to allow for policies and human-in-the-loop intervention at key stages during agent execution, mainly for LLM and tool calls
@@ -201,7 +201,8 @@ spec:
 
 `app.py`
 
-The "glue code" for connecting an agent to Drasi queries is only a handful of lines:
+The "glue code" for connecting an agent to Drasi queries is only a handful of lines
+(note: some parameters such as agent instructions and task have been simplified for brevity):
 
 ```python
 import asyncio
@@ -293,7 +294,7 @@ imagine now that the event is part of a larger, marketplace order fulfillment wo
 This step can last for several hours, several days, or even several weeks.
 Depending on the received event, the agent can either complete successfully or escalate, calling other agents and workflows as necessary.
 
-Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors)
+Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors),
 the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time (allowing for "scale-to-zero" agents).
 However, the agent app itself continues to run and consume resources even if there are no incoming orders (demand may fluctuate), and with multiple instances of an agent app,
 the amount of wasted compute/resources can add up quickly. To address this, Dapr Agents should support scaling based on metrics such as the number of active, **non-suspended** workflows
