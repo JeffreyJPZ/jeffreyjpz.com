@@ -96,7 +96,7 @@ demonstrates this with a minimal amount of configuration and application code, s
 
 **Source**
 
-`products.yaml`
+`products.yaml` specifies the connection details and the target data sources (which in this case is a `products` table in a Postgres database):
 
 ```yaml
 apiVersion: v1
@@ -117,7 +117,7 @@ spec:
 
 **Queries**
 
-`critical-stock-event.yaml`
+`critical-stock-event.yaml` specifies a Cypher query to emit an event when a product is out of stock:
 
 ```yaml
 apiVersion: v1
@@ -143,7 +143,7 @@ spec:
         p.low_stock_threshold AS lowStockThreshold
 ```
 
-`low-stock-event.yaml`
+`low-stock-event.yaml` specifies a Cypher query to emit an event when a product is below some minimum threshold:
 
 ```yaml
 apiVersion: v1
@@ -171,7 +171,7 @@ spec:
 
 **Reaction**
 
-`inventory-events-publisher.yaml`
+`inventory-events-publisher.yaml` describes where to route events using [Dapr's pub/sub API](https://docs.dapr.io/developing-applications/building-blocks/pubsub/pubsub-overview/#pubsub-api)
 
 ```yaml
 kind: Reaction
@@ -199,9 +199,7 @@ spec:
 
 **Agent App**
 
-`app.py`
-
-The "glue code" for connecting an agent to Drasi queries is only a handful of lines
+The "glue code" in `app.py` for subscribing an agent to Drasi queries is only a handful of lines
 (note: some parameters such as agent instructions and task have been simplified for brevity):
 
 ```python
