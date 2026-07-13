@@ -222,7 +222,12 @@ from dapr_agents.ext.drasi import DrasiChangeEvent, drasi_trigger
 
 
 def make_task(event: DrasiChangeEvent, ctx: Any) -> TriggerAction:
-    return TriggerAction(task=f"Create a purchase order with the following data:\n\n{event.payload.after.model_dump()}")
+    return TriggerAction(
+        task=(
+            "Create a purchase order with the following data:\n\n"
+            + event.payload.after.model_dump_json()
+        )
+    )
 
 
 async def main() -> None:
@@ -235,14 +240,14 @@ async def main() -> None:
         memory=AgentMemoryConfig(
             store=ConversationDaprStateMemory(store_name="agent-memory"),
         ),
-        state=AgentStateConfig(
-            store=StateStoreService(store_name="agent-runtime"),
-        ),
-        execution=AgentExecutionConfig(max_iterations=1),
         pubsub=AgentPubSubConfig(
             pubsub_name=AGENT_PUBSUB_COMPONENT,
             agent_topic="inventory-agent",
         ),
+        state=AgentStateConfig(
+            store=StateStoreService(store_name="agent-runtime"),
+        ),
+        execution=AgentExecutionConfig(max_iterations=1),
     )
 
     # Register Drasi query subscriptions
