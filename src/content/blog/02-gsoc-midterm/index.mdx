@@ -52,8 +52,8 @@ For example, you could have a triage/SRE agent that validates incoming tickets a
   <Image src={triageAgent} alt="Triage agent" inferSize />
 </figure>
 
-This works well for simple events, however, in certain situations you might want agents to be triggered by specific *domain events* with the exact context needed to take action — instead of a generic "order created" event,
-these events could be "a customer's order was placed but has been stuck in 'processing' for a week due to payment failures, decide who needs to be notified with the customer, order, transaction, and seller details":
+This works well if the event types are supported, however, in certain situations you might want agents to be triggered by specific *domain events* with the exact context needed to take action — instead of a generic "order created" event,
+these events could be "a customer's order was placed but has been stuck in 'shipping' for a week due to delays, decide who needs to be notified and what needs to be done with the customer, order, transaction, and seller details":
 
 <figure>
   <Image src={troubleshootingAgent} alt="Troubleshooting agent" inferSize />
@@ -91,7 +91,7 @@ Queries are not written in an obscure, domain-specific language — Drasi suppor
 
 With Drasi and the extension for Dapr Agents, the amount of configuration and application code needed to build an end-to-end change detection pipeline
 — and have agents to react to those events — is reduced significantly.
-The [Drasi example in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s)
+The [Drasi example in the Dapr Agents repository](https://github.com/dapr/dapr-agents/tree/78439d3e4a7d88800fa151a8dae300d8b22f3f24/examples/ext-drasi-change-driven-agents-k8s)
 demonstrates this with a minimal amount of configuration and application code, shown below for your convenience:
 
 **Source**
@@ -279,7 +279,7 @@ if __name__ == "__main__":
         pass
 ```
 
-You can [try out the full example for yourself in the Dapr Agents repository](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/examples/ext-drasi-change-driven-agents-k8s).
+You can [try out the full example for yourself in the Dapr Agents repository](https://github.com/dapr/dapr-agents/tree/78439d3e4a7d88800fa151a8dae300d8b22f3f24/examples/ext-drasi-change-driven-agents-k8s).
 
 ## Future look: dynamic Drasi query subscriptions and scale-to-zero for Dapr Agents workloads
 
@@ -292,10 +292,10 @@ so agents can discover and subscribe to the queries that they need — this also
 Returning to the marketplace order issue event mentioned above ("a customer's order was placed..."),
 imagine now that the event is part of a larger, marketplace order fulfillment workflow:
 1. An order service receives a customer order event and initiates a workflow.
-2. The workflow verifies the order, checks for fraud, initiates payment, and then delegates troubleshooting to a separate agent service.
-3. The agent starts up and immediately suspends, waiting for the payment to successfully complete, or for an issue event from Drasi.
+2. The workflow verifies the order, checks for fraud, completes payment, and then delegates troubleshooting to a separate agent service.
+3. The agent starts up and immediately suspends, waiting for the delivery to successfully complete.
 This step can last for several hours, several days, or even several weeks.
-Depending on the received event, the agent can either complete successfully or escalate, calling other agents and workflows as necessary.
+If Drasi raises an issue event before the delivery is complete, the agent can be reactivated to proactively resolve the issue.
 
 Thanks to Dapr Agents' durability and [actor-based architecture](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-actors),
 the agent can safely "go to sleep", and its in-memory workflow state in the Dapr sidecar can be freed up during that idle time (allowing for "scale-to-zero" agents).
@@ -307,7 +307,7 @@ and/or the rate of incoming events, enabling not just scale-to-zero agents, but 
 
 Feedback and contributions are always welcome. [Join the Dapr discord](https://discord.com/invite/dapr-778680217417809931),
 [raise an issue in the Dapr Agents repository](https://github.com/dapr/dapr-agents),
-or [learn how to contribute to the Drasi extension](https://github.com/JeffreyJPZ/dapr-agents/tree/drasi-trigger/ext/dapr-agents-ext-drasi).
+or [learn how to contribute to the Drasi extension](https://github.com/dapr/dapr-agents/tree/78439d3e4a7d88800fa151a8dae300d8b22f3f24/ext/dapr-agents-ext-drasi).
 
 To learn more about Drasi, [join the Drasi discord](https://discord.com/invite/AX7FneckBq),
 [view the documentation](https://drasi.io/), or [try out some of the tutorials](https://github.com/drasi-project/learning).
