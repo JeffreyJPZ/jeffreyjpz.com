@@ -49,7 +49,7 @@ Fortunately for them (and unfortunately for us), there are several CNCF projects
 
 [Drasi](https://drasi.io/) is a CNCF Sandbox project aimed at making detecting and reacting to changes across data sources easier via declarative configuration. It consists of three main components:
 - **Sources** to ingest data from existing systems
-- **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit events when those conditions are satisfied
+- **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit "change" events when those conditions are satisfied
 - **Reactions** to push events to downstream consumers
 
 [Dapr](https://dapr.io/) is a CNCF Graduated project consisting of a sidecar runtime and multiple APIs to help developers build microservices and distributed systems.
@@ -66,29 +66,77 @@ the work that was done and the challenges faced along the way.
 ### Static Drasi subscriptions and initial Drasi extension
 
 After familiarizing myself with both projects' architectures and learning about Kubernetes during the community bonding period,
-we decided that the first milestone should involve triggering agents with events assuming the types of events (i.e. Drasi queries) are known in advance.
+we decided that the first milestone should involve writing an extension for Dapr Agents that can trigger agents with events assuming the types of events (i.e. Drasi queries) are known in advance.
 While not ideal, this would help us discover any initial gaps and scope the work for the GSoC period appropriately.
 
 Initially, we were thinking of a decorator `@drasi_trigger` allowing us to attach metadata (Drasi query ID, Dapr pub/sub component name, pub/sub topic name, etc.)
 to the agent, and later use that metadata at runtime to create Dapr pub/sub subscriptions and filter on events as they arrive.
-However, looking at the agent initialization flow, there was no easy way to place the decorator as all flows boiled down to:
+However, looking at the agent initialization flow, there was no easy way to place the decorator as all flows boiled down to something like:
 
 ```python
 agent = DurableAgent(...)
-runner = AgentRunner()
 
+runner = AgentRunner()
 try:
   runner.serve(agent)
 finally:
   runner.shutdown(agent)
 ```
 
-Talk about activations and reusing existing subscription wiring code
-Talk about client-side filtering PR before GSoC period and prereq mapper PR
-Talk about only supporting debatched events due to time and simplicity and clarity for LLM (for example, order events can have different subscription tiers that must be handled differently)
-Talk about Drasi SDK limitations and having to vendor schema
+Because of this, we instead pivoted to lifecycle hooks (see this [PR](https://github.com/dapr/dapr-agents/pull/638)) so that we could have a callback to modify the agent
+**after** initialization and **before** it is hosted as a service (i.e. the blocking `serve()` call). This way, we could not only preserve the existing agent code and initialization flow,
+but we could also leverage some of the existing subscription creation code.
+As a result, anyone using our extension wouldn't have to learn a new paradigm as the initialization flow looked like:
 
-Here is a demo of the Drasi trigger extension in action:
+```python
+agent = DurableAgent(...)
+
+drasi_trigger(
+  agent,
+  query_id="at-risk-orders-query",
+  pubsub="pubsub",
+  topic="orders.at-risk",
+)
+
+runner = AgentRunner()
+try:
+  runner.serve(agent)
+finally:
+  runner.shutdown(agent)
+```
+
+While building out an end-to-end example, we had to make a decision: what would the event shapes be?
+Since we were reusing an existing [Drasi "pub/sub router" reaction](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/#output-formats),
+the choice was between "packed" events representing multiple batched changes, "unpacked" events representing a single, discrete change, or both.
+To minimize scope creep, we focused on unpacked events for two reasons:
+1. Agents would have an easier time acting on individual changes.
+2. Common issues relating to multi-tenant architectures would be eliminated off the bat — data leakage, the "noisy neighbour" problem where one slow course of action blocks the others from completing, among others.
+
+As a concrete example, imagine that you have an agent that is triggered when orders are delayed/at-risk and proactively resolves them.
+A packed event could contain multiple at-risk order records, each associated with a customer who holds a certain subscription tier.
+Premium subscription tiers would have different guarantees than basic subscription tiers,
+meaning that an agent would need to delegate to specialized subagents to avoid juggling many tasks (which still suffers from data leakage and the noisy neighbour problem without careful design).
+You might also have a custom enterprise tier for enterprise customers with different SLAs, which could force you to use unpacked events anyway.
+
+Now that we could receive events, the next step was to be able to filter, validate, and transform them into a actionable task message before triggering the agent.
+Even before the GSoC period, I'd recognized that this would be a problem — Dapr's [content-based routing](https://docs.dapr.io/developing-applications/building-blocks/pubsub/howto-route-messages/),
+is done by the Dapr sidecar for push-based subscriptions, but Dapr Agents recently migrated to pull-based subscriptions (probably for natural backpressure). This grunt work then had to be done in client code,
+but there was no support for it at the time. I opened an [issue for client-side filtering](https://github.com/dapr/dapr-agents/issues/561), [reviewed the eventual PR](https://github.com/dapr/dapr-agents/pull/605#pullrequestreview-4392290650),
+and eventually [added client-side transformation](https://github.com/dapr/dapr-agents/pull/646) myself.
+We also decided that Drasi subscriptions should **not** share the same pub/sub topic used by the agent's primary subscription as there was no way to deliver a single event (i.e. fan-out) to multiple subscription handlers at the application level
+(nor should it, it's better suited to the workflow level since the focus is on business processes).
+This was a painful realization — I spent many hours trying to debug why Drasi events **sometimes** failed to trigger agents before figuring out that there was a race condition between the primary handler and the Drasi event handler.
+
+After that, the core of the work was done, but we still had another decision to make as to who would own the models used to validate Drasi events.
+Since they were autogenerated from JSON schemas on the Drasi side, it was natural to consume them as a part of a Drasi SDK.
+Unfortunately, limitations with the autogeneration tool `datamodel-codegen` used by Drasi, as well as model name collisions due to how the JSON schema was defined
+(see the entire diagnosis [here](https://github.com/drasi-project/drasi-platform/pull/437#pullrequestreview-4548162065)) forced us to vendor (a fancy term for copy over) the schemas
+to the extension, as otherwise we'd be blocked indefinitely trying to devise a clever workaround.
+
+After [fixing another race condition](https://github.com/dapr/dapr-agents/blob/9fc673fee96057153ff163b690be9cea4c7a823b/ext/dapr-agents-ext-drasi/tests/test_drasi_trigger.py#L104-L110) where tests would complete before agents could be scheduled to run,
+the initial extension was able to be [merged](https://github.com/dapr/dapr-agents/pull/665) and [released](https://pypi.org/project/dapr-agents-ext-drasi/).
+
+Here's a demo of the Drasi extension in action:
 
 <YouTube id="-pivbWGCMqc" />
 
@@ -139,7 +187,7 @@ you **should** still take some time to write code by hand as it forces you to sl
 Reviewing AI-generated code is not the same — even if you scrutinize every line, how do you catch these things without having thought about it or experienced it yourself?
 Sure, you could plan for every failure mode, but that again requires experience (unless you're a prodigy). That said, I did leverage it extensively for prototyping and work involving lots of boilerplate (e.g. tests),
 as the stakes are much lower there.
-- Make life easier for other people — this comes in muliple forms such as pointing out questionable areas on PRs, preparing discussion points before meetings, and trying to unblock yourself as much as possible.
+- Make life easier for other people — this comes in muliple forms such as communicating frequently (this is usually asynchronous), pointing out questionable areas on PRs, preparing discussion points before meetings, and trying to unblock yourself as much as possible.
 With higher productivity expectations nowadays due to AI, people are stretched thin, so removing some of this burden is highly appreciated.
 - Senior/staff engineers aren't gods — they will make mistakes, backtrack on earlier decisions once they have more information, and disagree with each other.
 What matters is having a breadth of knowledge, depth in a domain or two, and the ability to navigate ambiguity, adapt to changing priorities, and take ownership of high-impact projects, across teams if necessary
