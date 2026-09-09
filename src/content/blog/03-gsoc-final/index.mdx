@@ -70,12 +70,22 @@ we decided that the first milestone should involve triggering agents with events
 While not ideal, this would help us discover any initial gaps and scope the work for the GSoC period appropriately.
 
 Initially, we were thinking of a decorator `@drasi_trigger` allowing us to attach metadata (Drasi query ID, Dapr pub/sub component name, pub/sub topic name, etc.)
-to the agent, and later use that metadata to create Dapr pub/sub subscriptions at runtime and filter on events as they arrive.
+to the agent, and later use that metadata at runtime to create Dapr pub/sub subscriptions and filter on events as they arrive.
+However, looking at the agent initialization flow, there was no easy way to place the decorator as all flows boiled down to:
 
-Talk about agent init pattern and the fact that there's nowhere to decorate
-Talk about only supporting debatched events due to time and simplicity and clarity for LLM (for example, order events can have different subscription tiers that must be handled differently)
+```python
+agent = DurableAgent(...)
+runner = AgentRunner()
+
+try:
+  runner.serve(agent)
+finally:
+  runner.shutdown(agent)
+```
+
 Talk about activations and reusing existing subscription wiring code
-Talk about client-side filtering PR beforehand and mapper PR
+Talk about client-side filtering PR before GSoC period and prereq mapper PR
+Talk about only supporting debatched events due to time and simplicity and clarity for LLM (for example, order events can have different subscription tiers that must be handled differently)
 Talk about Drasi SDK limitations and having to vendor schema
 
 Here is a demo of the Drasi trigger extension in action:
