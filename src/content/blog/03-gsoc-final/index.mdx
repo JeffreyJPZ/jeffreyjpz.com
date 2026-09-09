@@ -1,0 +1,177 @@
+---
+title: "[WIP] Building Scalable and Resilient Ambient AI Agents"
+description: "Google Summer of Code 2026 final report — Drasi and Dapr"
+date: "2026-09-06"
+---
+
+import Callout from "@/components/Callout.astro";
+import { Image } from "astro:assets";
+import { YouTube } from 'astro-embed';
+
+---
+
+This is the third blog post in the Google Summer of Code 2026 series and serves as the final report.
+View the previous blog post [here](https://jeffreyjpz.com/blog/02-gsoc-midterm/).
+
+Well, it was a good summer, but as with all good things, it must come to an end eventually.
+Here is everything that I did and learned during my time as a GSoC contributor with the [CNCF](https://www.cncf.io/),
+working with Drasi and Dapr Agents to make it easier for developers to build business-event driven, autonomous agents (also known as "ambient" agents).
+This won't be as fluid as the earlier blog posts as I need to tick off some boxes for the GSoC final report, but hopefully it's still interesting.
+
+## Summary
+
+My work spanned across the [Dapr Agents](https://github.com/dapr/dapr-agents) and [Drasi platform](https://github.com/drasi-project/drasi-platform) repositories.
+I've listed the tracking issues here containing links to all of the relevant PRs, but there will also be links to the PRs in the project deep dive.
+
+Link to Dapr Agents tracking issue: https://github.com/dapr/dapr-agents/issues/630
+Link to Drasi tracking issue: https://github.com/drasi-project/drasi-platform/issues/435
+
+## Project deep dive
+
+If you haven't already, I highly recommend that you read the [intro blog post](https://jeffreyjpz.com/blog/01-gsoc-intro/) and [midterm blog post](https://jeffreyjpz.com/blog/02-gsoc-midterm/)
+to understand the context behind the GSoC project, Drasi, Dapr Agents (and its core dependency Dapr), and the terms used in this blog post. Just for you though, I'll give a brief summary.
+
+### Background context
+
+Interacting with "pure" LLMs is almost never done anymore — familiar tools like the web versions of Claude and ChatGPT have shifted to "conversational agents",
+with memory to remember previous messages and tool calling to enrich themselves with relevant information.
+Conversational agents are the most visible kind of agent to consumers today, with use cases such as search queries, customer support, or troubleshooting.
+
+However, what companies really want is to build autonomous agentic **systems** that can **proactively** execute business-critical processes and replace your job.
+For this to happen, agents must be able to run in the background (because nobody wants to babysit), run for a long time (since most tasks are complex), escalate when necessary (for good reasons), among others.
+On top of that, while running autonomous agents in production, more issues pop up:
+- Agents are bursty — they may execute for several minutes before waiting for approval for multiple weeks
+- Failures are common — when agents restart, they repeat LLM/tool calls, which can be expensive at scale
+- Governance and compliance — in highly-regulated industries, you need to be able to tightly control what an agent can access, and prove what an agent did at each step (and who authorized it)
+- Connecting to existing data sources and triggering agents from them involves tons of boilerplate code, reducing developer velocity
+
+Fortunately for them (and unfortunately for us), there are several CNCF projects in this space:
+
+[Drasi](https://drasi.io/) is a CNCF Sandbox project aimed at making detecting and reacting to changes across data sources easier via declarative configuration. It consists of three main components:
+- **Sources** to ingest data from existing systems
+- **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit events when those conditions are satisfied
+- **Reactions** to push events to downstream consumers
+
+[Dapr](https://dapr.io/) is a CNCF Graduated project consisting of a sidecar runtime and multiple APIs to help developers build microservices and distributed systems.
+One of its most popular and useful features is its built-in durable workflow engine (based on virtual actors),
+which powers the [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/) agentic framework/subproject.
+Dapr Agents comes with [many advantages over traditional agentic frameworks](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/),
+but the one I find personally interesting is that agents can be deactivated when idle and reactivated on demand,
+allowing many agents can be multiplexed onto a single core (all thanks to the virtual actor architecture). There are very few like it today (Google's Agent Executor + Agent Substrate is the most similar), but I digress.
+
+As mentioned in the summary, this GSoC project was focused on integrating the two projects to enable new use cases,
+requiring a lot of exploratory work and uncovering gaps in both projects along the way. The following sections discuss
+the work that was done and the challenges faced along the way.
+
+### Static Drasi subscriptions and initial Drasi extension
+
+After familiarizing myself with both projects' architectures and learning about Kubernetes during the community bonding period,
+we decided that the first milestone should involve triggering agents with events assuming the types of events (i.e. Drasi queries) are known in advance.
+While not ideal, this would help us discover any initial gaps and scope the work for the GSoC period appropriately.
+
+Initially, we were thinking of a decorator `@drasi_trigger` allowing us to attach metadata (Drasi query ID, Dapr pub/sub component name, pub/sub topic name, etc.)
+to the agent, and later use that metadata to create Dapr pub/sub subscriptions at runtime and filter on events as they arrive.
+
+Talk about agent init pattern and the fact that there's nowhere to decorate
+Talk about only supporting debatched events due to time and simplicity and clarity for LLM (for example, order events can have different subscription tiers that must be handled differently)
+Talk about activations and reusing existing subscription wiring code
+Talk about client-side filtering PR beforehand and mapper PR
+Talk about Drasi SDK limitations and having to vendor schema
+
+Here is a demo of the Drasi trigger extension in action:
+
+<YouTube id="-pivbWGCMqc" />
+
+### Exploring dynamic Drasi subscriptions
+- Upsate existing design diagram and use that
+- Talk about in-process MCP server vs. separate reaction
+- Talk about state model
+- Talk about read/write strategy (prefer strong consistency due to Dapr Agents targeted industries and non-latency sensitive autonomous agents)
+- Talk about needing to do two-stage subscription
+- Talk about limiting to one replica
+- Talk about instructions as part of hot-reloaded system prompt vs dedicated state keyed by agent ID and subscription ID
+(mention treating agents as workers instead of stateful due to nature of autonomous agents and encoding "sessions" inside events via CloudEvent ID - same principle as sessionless MCP w/ state handles https://modelcontextprotocol.io/seps/2567-sessionless-mcp)
+
+Design doc link: https://docs.google.com/document/d/1H1DxIRP-7Duc0njXhe5EKXnx1Ztd5jIuyUUIKVp7qU4/edit?usp=sharing
+
+## Cloud Native Vancouver July 2026 meetup presentation
+
+As a fun little "sidequest", I delivered a talk about Drasi and Dapr Agents at my local CNCF chapter around the time the initial Drasi extension was being polished for release.
+I hadn't done a technical presentation before, and I knew it would be challenging to introduce two CNCF projects **and** talk about the GSoC project in 30 minutes.
+Thankfully, I had the help of my mentor Aman Singh (who's done this many times) for helping me cut down the slides,
+figuring out timings and structure, and reviewing my notes for accuracy. The talk went quite well despite my nervousness — I was able to answer most of the questions and I got some great feedback from the audience on how to deliver a more engaging and focused presentation (thanks to all!).
+These were:
+- Preferring one motivating example and referencing that throughout the talk and the demo
+- Preferring live demos (even if they break) over recorded demos
+- Preferring QR codes over links so people can scan them on the spot
+I'm not entirely satisfied with how I presented either — I relied a lot on my notes as there was a lot of content to cover, but this anchored me to my laptop and made the talk feel more static than I would've liked.
+
+All things said, I really enjoyed presenting. While it's not something I'd like to do every single day,
+sharing my knowledge and learnings from working on a cool project in an emerging field is rewarding.
+I hope to be able to present at more meetups and potentially bigger conferences like KubeCon + CloudNativeCon or the new AGNTCon + MCPCon in the future.
+
+Link to slides: https://docs.google.com/presentation/d/1YVNf-c2Pl3h1JQTcViRoS2Hp4OTvh_zzgJa9h-ouSV4/edit?usp=sharing
+
+<YouTube id="SYb1FpklC_8" />
+
+## What I learned
+
+Here's what I've learned from working on my project and observing how other engineers operate on the Drasi and Dapr projects.
+Some of this may be specific to open-source work rather than traditional corporate/product work, but I hope that some of this advice will be useful to students and newcomers to the industry.
+
+- Write down everything — your action items for today, error logs and steps you took while debugging, repeated shell commands. As someone new to the industry, you need to know so much
+that your brain simply can't hold it all.
+- Do your research — AI is useful in that you don't even need to know the right terminology or write perfectly coherent thoughts. For example, when I was wrestling with Python package management
+to be able to publish the Drasi extension as a separate package yet have it as part of a monorepo,
+it helped explain to me how module resolution works despite me likely misusing a bunch of terms (unfortunately I've forgotten how it works now).
+- Use AI judiciously — this might be partially due to necessity since I couldn't afford to burn through that many credits, but as someone who is relatively inexperienced,
+you **should** still take some time to write code by hand as it forces you to slow down and think about design principles, edge case handling, error handling, and other foundation skills.
+Reviewing AI-generated code is not the same — even if you scrutinize every line, how do you catch these things without having thought about it or experienced it yourself?
+Sure, you could plan for every failure mode, but that again requires experience (unless you're a prodigy). That said, I did leverage it extensively for prototyping and work involving lots of boilerplate (e.g. tests),
+as the stakes are much lower there.
+- Make life easier for other people — this comes in muliple forms such as pointing out questionable areas on PRs, preparing discussion points before meetings, and trying to unblock yourself as much as possible.
+With higher productivity expectations nowadays due to AI, people are stretched thin, so removing some of this burden is highly appreciated.
+- Senior/staff engineers aren't gods — they will make mistakes, backtrack on earlier decisions once they have more information, and disagree with each other.
+What matters is having a breadth of knowledge, depth in a domain or two, and the ability to navigate ambiguity, adapt to changing priorities, and take ownership of high-impact projects, across teams if necessary
+(for Drasi and Dapr this is equivalent to working across multiple codebases — core runtime, client libraries/language SDKs, frameworks and integrations).
+This means that the dreaded **soft skills** are equal to or arguably more important than technical skills as you need to be able to advocate for yourself and your work, no matter what it is.
+- Most importantly, it's ok to not know what you're doing — I'm not exaggerating when I say that I woke up most days not knowing what I needed to do that day because of all of the ambiguity.
+This is why it's important to identify your daily/weekly goals, and how they relate to the big picture before you break them down into daily tasks.
+
+## Future work
+
+So far, [v0.1.0 for the Drasi extension has been published](https://pypi.org/project/dapr-agents-ext-drasi/) with the ability to statically subscribe to Drasi queries.
+I've also built a [very rough proof of concept](https://github.com/drasi-project/drasi-platform/pull/443) of an "agent-aware" Drasi event router with an MCP server. This allows agents to subscribe to Drasi queries dynamically
+over any Dapr-supported message broker, and I've built [another proof of concept](https://github.com/dapr/dapr-agents/pull/744) demonstrating how Dapr Agents developers can enable this capability with a handful of lines of code.
+
+As school is starting up again, my mentor Aman Singh will pick up from where I left off and create an MVP based on my work, but there are definitely some things that I would like to explore in the future to make things production-ready
+(note: this is non-exhaustive):
+
+- Security was out of scope for the GSoC period not only because of time limitations, but because [agent identity](https://www.diagrid.io/blog/agent-identity-on-behalf-of-delegation) is a relatively new problem.
+- Scale-to-zero for agent apps (not to be confused with the agents themselves) had to be cut as well due to a lack of Dapr runtime support (you can see some related [proposals](https://github.com/dapr/proposals/pull/77) and [issues](https://github.com/dapr/dapr/issues/10442)).
+- Finally, we focused on use cases that could probably be modelled by deterministic workflows (e.g. a basic inventory agent that orders more stock when a product in a database becomes low in stock). Exploring use cases that leverage Drasi's advantages
+(detecting high-frequency changes and the absence of change) and Dapr Agents' advantages (adding reliability, scalability, durability, and governance to long-running autonomous agents and orchestrations) could expose interesting gaps.
+
+## Acknowledgements
+
+Of course, all of this wouldn't have occurred without the efforts of many organizations and individuals in the name of advancing open source.
+Thank you to Google and the GSoC team for providing this amazing structured and paid program, allowing contributors to fully immerse themselves into their communities and projects.
+Thank you to the CNCF for helping to foster these amazing cloud-native open-source projects, and especially [Nate Waddington](https://www.linkedin.com/in/nate-double-u/) and the rest of the CNCF Mentoring team
+for handling logistics and behind-the-scenes work. Thank you to Microsoft Azure and the Office of the CTO Incubations team for ideating Dapr and Drasi — I've learned how to think about the developer and operator experience when building tools,
+which is challenging yet fulfilling.
+
+Lastly, I want to give a personal thank you to my mentors [Aman Singh](https://www.linkedin.com/in/amansinghoriginal/) and [Casper Nielsen](https://www.linkedin.com/in/casperwmnielsen/) for helping me to grow
+as a developer and open-source contributor. Without them, this project would not have been successful or challenging (in a good way). Apart from biweekly syncs and reviewing PRs, they gave me the day-to-day autonomy to make
+feature-level design choices and tradeoffs, and identify gaps in Drasi and Dapr Agents that needed to be addressed for the project (as long as I was able to justify them).
+However, due to my inexperience with system design and this particular niche (the intersection of AI, cloud, durable execution, and event-driven systems),
+the ambiguity was overwhelming at certain times, so I'm thankful that they helped to steer the ship by answering questions and collaborating together on design documents.
+
+## How to get involved
+
+[Join the Dapr discord](https://discord.com/invite/dapr-778680217417809931),
+[raise an issue in the Dapr Agents repository](https://github.com/dapr/dapr-agents),
+or [learn how to contribute to the Drasi extension](https://github.com/dapr/dapr-agents/tree/78439d3e4a7d88800fa151a8dae300d8b22f3f24/ext/dapr-agents-ext-drasi).
+I will try to be as active as possible by reviewing PRs for Dapr Agents and answering questions in the Discord server.
+
+To learn more about Drasi, [join the Drasi discord](https://discord.com/invite/AX7FneckBq),
+[view the documentation](https://drasi.io/), or [try out some of the tutorials](https://github.com/drasi-project/learning).
