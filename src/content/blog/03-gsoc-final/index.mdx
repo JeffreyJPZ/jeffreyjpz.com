@@ -26,12 +26,13 @@ My work spanned across the [Dapr Agents](https://github.com/dapr/dapr-agents) an
 I've listed the tracking issues here that link to all of the relevant PRs, but there will also be references to the PRs in the project deep dive.
 
 Link to Dapr Agents tracking issue: https://github.com/dapr/dapr-agents/issues/630
+
 Link to Drasi tracking issue: https://github.com/drasi-project/drasi-platform/issues/435
 
 ## Project deep dive
 
 If you haven't already, I highly recommend that you read the [intro blog post](https://jeffreyjpz.com/blog/01-gsoc-intro/) and [midterm blog post](https://jeffreyjpz.com/blog/02-gsoc-midterm/)
-to understand the context behind the GSoC project, Drasi, Dapr Agents (and its core dependency Dapr), and the terms used in this blog post. Just for you though, I'll give a brief summary.
+to understand the context behind the GSoC project, Drasi, Dapr Agents, and the terms used in this blog post. Just for you though, I'll give a brief summary.
 
 ### Background context
 
@@ -40,9 +41,9 @@ with memory to remember previous messages and tool calling to enrich themselves 
 Conversational agents are the most visible kind of agent to consumers today, with use cases such as search queries, customer support, or troubleshooting.
 
 However, what companies really want is to build autonomous agentic **systems** that can **proactively** execute business-critical processes and replace your job.
-For this to happen, agents must be able to run in the background (because nobody wants to babysit), run for a long time (since most tasks are complex), escalate when necessary, among others.
+For this to happen, agents must be able to run in the background (because nobody wants to babysit 24/7), run for a long time (since a lot of business process are complex), escalate when necessary, among others.
 On top of that, while running autonomous agents in production, more issues pop up:
-- Agents are bursty — they may execute for several minutes before waiting for approval for multiple weeks
+- Agents are bursty — they may execute for several minutes before waiting for approval for multiple days or weeks
 - Failures are common — when agents restart, they repeat LLM/tool calls, which can be expensive at scale
 - Governance and compliance — in highly-regulated industries, you need to be able to tightly control what an agent can access, and prove what an agent did at each step (and who authorized it)
 - Connecting to existing data sources and triggering agents from them involves tons of boilerplate code, reducing developer velocity
@@ -50,16 +51,16 @@ On top of that, while running autonomous agents in production, more issues pop u
 Fortunately for them (and unfortunately for us), there are several CNCF projects in this space:
 
 [Drasi](https://drasi.io/) is a CNCF Sandbox project aimed at making detecting and reacting to changes across data sources easier via declarative configuration. It consists of three main components:
-- **Sources** to ingest data from existing systems
-- **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit "change" events when those conditions are satisfied
-- **Reactions** to push events to downstream consumers
+- **Sources** to ingest data from existing systems.
+- **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit "change" events when those conditions are satisfied.
+- **Reactions** to push events to downstream consumers.
 
 [Dapr](https://dapr.io/) is a CNCF Graduated project consisting of a sidecar runtime and multiple APIs to help developers build microservices and distributed systems.
 One of its most popular and useful features is its built-in durable workflow engine (based on virtual actors),
 which powers the [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/) agentic framework/subproject.
 Dapr Agents comes with [many advantages over traditional agentic frameworks](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/),
 but the one I find personally interesting is that agents can be deactivated when idle and reactivated on demand,
-allowing many agents can be multiplexed onto a single core (all thanks to the virtual actor architecture). There are very few like it today (Google's Agent Executor + Agent Substrate is the most similar), but I digress.
+allowing many agents can be multiplexed onto a single core (all thanks to the virtual actor architecture). There's nothing quite like it today, but I digress.
 
 As mentioned in the summary, this GSoC project was focused on integrating the two projects to enable new use cases,
 requiring a lot of exploratory work and uncovering gaps in both projects along the way. The following sections discuss
