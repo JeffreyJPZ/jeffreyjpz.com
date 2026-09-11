@@ -8,6 +8,8 @@ import Callout from "@/components/Callout.astro";
 import { Image } from "astro:assets";
 import { YouTube } from 'astro-embed';
 
+import subDiagram from './sub-diagram.png';
+
 ---
 
 This is the third blog post in the Google Summer of Code 2026 series and serves as the final report.
@@ -293,8 +295,12 @@ but this is still up in the air (again, there are no best practices to follow).
 The exact implementation details can be found in [this PR](https://github.com/dapr/dapr-agents/pull/744),
 but I won't delve any further since this blog post is long enough as is.
 
-Here is a sequence diagram for the subscription flow (some details omitted for brevity):
-<insert diagram here>
+Here is a rough sequence diagram for the subscription flow:
+
+<figure>
+  <Image src={subDiagram} alt="Subscription flow sequence diagram" inferSize />
+  <figcaption>Ctrl + Plus to zoom in</figcaption>
+</figure>
 
 ## Cloud Native Vancouver July 2026 meetup presentation
 
