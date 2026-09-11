@@ -66,11 +66,11 @@ As mentioned in the summary, this GSoC project was focused on integrating the tw
 requiring a lot of exploratory work and uncovering gaps in both projects along the way. The following sections discuss
 the work that was done and the challenges faced along the way.
 
-### Static Drasi subscriptions and initial Drasi extension
+### Drasi extension for change-driven agents
 
 After familiarizing myself with both projects' architectures and learning about Kubernetes during the community bonding period,
-we decided that the first milestone should involve writing an extension for Dapr Agents that can trigger agents with events assuming the types of events (i.e. Drasi queries) are known in advance.
-While not ideal, this would help us discover any initial gaps and scope the work for the GSoC period appropriately.
+we decided that the first milestone would involve writing an extension for Dapr Agents so that developers can trigger agents with Drasi events.
+To start with, we assumed that the Drasi queries would be known in advance — while not ideal, this would help us discover any initial gaps and scope the work for the GSoC period appropriately.
 
 Initially, we were thinking of a decorator `@drasi_trigger` allowing us to attach metadata (Drasi query ID, Dapr pub/sub component name, pub/sub topic name, etc.)
 to the agent, and later use that metadata at runtime to create Dapr pub/sub subscriptions and filter on events as they arrive.
@@ -196,7 +196,7 @@ Here's a demo of the Drasi extension in action:
 
 <YouTube id="-pivbWGCMqc" />
 
-### Exploring dynamic Drasi subscriptions
+### Exploring dynamic Drasi subscriptions for ambient agents
 
 The second milestone for the GSoC period explored the idea of agents discovering Drasi queries at runtime, subscribing to them, then waiting for events to arrive and acting on them with dynamic, LLM-generated, context-specific "instructions".
 The main benefit of this would be that agents and Drasi pipelines can be developed independently, and not having to redeploy agent apps when Drasi queries are updated.
