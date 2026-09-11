@@ -286,7 +286,7 @@ To understand why this was insufficient, we need to look at how Dapr agents are 
 (if you're interested, you can read up on how the Dapr workflow substrate scales [here](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-scalability)).
 Modifying the instructions would affect **every agent belonging to that type**, so it was decided that instructions would be a part of the runtime subscription state.
 
-For instruction injection, we relied on our primary use case of having an agent subscribe, "sleep" (deactivate), and "wake up" (reactivate) on events to help guide us.
+For instruction injection, we relied on our initial idea of an agent subscribing, "sleep" (deactivate), and "wake up" (reactivate) on events to help guide us.
 To "wake up" the agent, we could either route the event to the same agent instance, potentially resulting in "eternal" agents with massive history logs; or we could
 continue treating agents as disposable workers since all the information needed to look up subscription state would exist on the event (namely CloudEvent metadata).
 We ultimately went with the second approach as no functionality exists in Dapr Agents today to handle the first,
