@@ -272,7 +272,7 @@ As MCP is continuously evolving, best practices have not been established yet fo
 but we opted to keep our injected arguments (subscription ID, agent ID) at the top level.
 
 Another problem dealt with "reminding" the agent when the Drasi event is received via dynamic, LLM-generated instructions.
-Our thought process going in was effectively: ***"When the LLM decides to subscribe, it should be able to determine what it should do to act on an incoming event. Can't we just have instructions as a regular MCP tool parameter with a detailed-enough description?"***
+Our thought process going in was effectively: ***"When the LLM decides to subscribe, it should be able to determine what it should do to act on an incoming event. Can't we just have instructions as a regular MCP tool parameter with a detailed description?"***
 This sounded reasonable enough at the time (apart from the meta prompting required), but we quickly realized that instructions was a agent-only concern and should not be sent as part of the tool call.
 Accounting for injected arguments, this meant that we had to maintain **two** different schemas for our subscription tool:
 
