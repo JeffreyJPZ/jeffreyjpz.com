@@ -38,7 +38,7 @@ with memory to remember previous messages and tool calling to enrich themselves 
 Conversational agents are the most visible kind of agent to consumers today, with use cases such as search queries, customer support, or troubleshooting.
 
 However, what companies really want is to build autonomous agentic **systems** that can **proactively** execute business-critical processes and replace your job.
-For this to happen, agents must be able to run in the background (because nobody wants to babysit), run for a long time (since most tasks are complex), escalate when necessary (for good reasons), among others.
+For this to happen, agents must be able to run in the background (because nobody wants to babysit), run for a long time (since most tasks are complex), escalate when necessary, among others.
 On top of that, while running autonomous agents in production, more issues pop up:
 - Agents are bursty — they may execute for several minutes before waiting for approval for multiple weeks
 - Failures are common — when agents restart, they repeat LLM/tool calls, which can be expensive at scale
@@ -108,6 +108,59 @@ finally:
 While building out an end-to-end example, we had to make a decision: what would the event shapes be?
 Since we were reusing an existing [Drasi "pub/sub router" reaction](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/#output-formats),
 the choice was between "packed" events representing multiple batched changes, "unpacked" events representing a single, discrete change, or both.
+
+<figure>
+```json
+{
+  "specversion": "1.0",
+  "type": "com.dapr.event.sent",
+  "source": "reaction-post-dapr-pubsub-app-id",
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "datacontenttype": "application/json",
+  "pubsubname": "drasisystem-pubsub",
+  "topic": "product-updates-packed",
+  "data": {
+    "queryId": "product-updates-query",
+    "sourceTimeMs": 1678886400123,
+    "addedResults": [
+      { "product_id": "P101", "name": "Laptop X", "price": 1200.00 }
+    ],
+    "updatedResults": [],
+    "deletedResults": [],
+    "sequence": 1
+  }
+}
+```
+<figcaption>An example of a "packed" event representing an inventory update. Credit: [Drasi Docs](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/#packed-format)</figcaption>
+</figure>
+
+<figure>
+```json
+{
+  "op": "u",
+  "ts_ms": 1678886400350,
+  "seq": 1,
+  "payload": {
+    "source": {
+      "queryId": "inventory-alerts-query",
+      "ts_ms": 1678886400300
+    },
+    "before": {
+      "itemId": "SKU789", 
+      "stockLevel": 5,
+      "status": "low"
+    },
+    "after": { 
+      "itemId": "SKU789", 
+      "stockLevel": 3,
+      "status": "critically-low"
+    }
+  }
+}
+```
+<figcaption>An example of an "unpacked" event representing an inventory stock update. Credit: [Drasi Docs](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/#unpacked-format)</figcaption>
+</figure>
+
 To minimize scope creep, we focused on unpacked events for two reasons:
 1. Agents would have an easier time acting on individual changes.
 2. Common issues relating to multi-tenant architectures would be eliminated off the bat — data leakage, the "noisy neighbour" problem where one slow course of action blocks the others from completing, among others.
@@ -124,7 +177,7 @@ is done by the Dapr sidecar for push-based subscriptions, but Dapr Agents recent
 but there was no support for it at the time. I opened an [issue for client-side filtering](https://github.com/dapr/dapr-agents/issues/561), [reviewed the eventual PR](https://github.com/dapr/dapr-agents/pull/605#pullrequestreview-4392290650),
 and eventually [added client-side transformation](https://github.com/dapr/dapr-agents/pull/646) myself.
 We also decided that Drasi subscriptions should **not** share the same pub/sub topic used by the agent's primary subscription as there was no way to deliver a single event (i.e. fan-out) to multiple subscription handlers at the application level
-(nor should it, it's better suited to the workflow level since the focus is on business processes).
+(nor should it, it's better suited to the workflow level since our focus is on business processes).
 This was a painful realization — I spent many hours trying to debug why Drasi events **sometimes** failed to trigger agents before figuring out that there was a race condition between the primary handler and the Drasi event handler.
 
 After that, the core of the work was done, but we still had another decision to make as to who would own the models used to validate Drasi events.
@@ -133,7 +186,7 @@ Unfortunately, limitations with the autogeneration tool `datamodel-codegen` used
 (see the entire diagnosis [here](https://github.com/drasi-project/drasi-platform/pull/437#pullrequestreview-4548162065)) forced us to vendor (a fancy term for copy over) the schemas
 to the extension, as otherwise we'd be blocked indefinitely trying to devise a clever workaround.
 
-After [fixing another race condition](https://github.com/dapr/dapr-agents/blob/9fc673fee96057153ff163b690be9cea4c7a823b/ext/dapr-agents-ext-drasi/tests/test_drasi_trigger.py#L104-L110) where tests would complete before agents could be scheduled to run,
+After [tackling another race condition](https://github.com/dapr/dapr-agents/blob/9fc673fee96057153ff163b690be9cea4c7a823b/ext/dapr-agents-ext-drasi/tests/test_drasi_trigger.py#L104-L110) where tests would complete before agents could be scheduled to run,
 the initial extension was able to be [merged](https://github.com/dapr/dapr-agents/pull/665) and [released](https://pypi.org/project/dapr-agents-ext-drasi/).
 
 Here's a demo of the Drasi extension in action:
@@ -141,16 +194,107 @@ Here's a demo of the Drasi extension in action:
 <YouTube id="-pivbWGCMqc" />
 
 ### Exploring dynamic Drasi subscriptions
-- Upsate existing design diagram and use that
-- Talk about in-process MCP server vs. separate reaction
-- Talk about state model
-- Talk about read/write strategy (prefer strong consistency due to Dapr Agents targeted industries and non-latency sensitive autonomous agents)
-- Talk about needing to do two-stage subscription
-- Talk about limiting to one replica
-- Talk about instructions as part of hot-reloaded system prompt vs dedicated state keyed by agent ID and subscription ID
-(mention treating agents as workers instead of stateful due to nature of autonomous agents and encoding "sessions" inside events via CloudEvent ID - same principle as sessionless MCP w/ state handles https://modelcontextprotocol.io/seps/2567-sessionless-mcp)
 
-Design doc link: https://docs.google.com/document/d/1H1DxIRP-7Duc0njXhe5EKXnx1Ztd5jIuyUUIKVp7qU4/edit?usp=sharing
+The second milestone for the GSoC period explored the idea of agents discovering Drasi queries at runtime, subscribing to them, then waiting for events to arrive and acting on them with dynamic, LLM-generated, context-specific "instructions".
+The main benefit of this would be that agents and Drasi pipelines can be developed independently, and not having to redeploy agent apps when Drasi queries are updated.
+In addition, the agent would be able to "remind" itself about what to do with its generated "instructions", which is useful for long-running tasks. 
+
+As this part of the project involved multiple services across different namespaces, we made sure to write a [design document](https://docs.google.com/document/d/1H1DxIRP-7Duc0njXhe5EKXnx1Ztd5jIuyUUIKVp7qU4/edit?usp=sharing)
+with the decisions and tradeoffs made. However, I'll summarize the most interesting challenges here.
+
+After some discussion, we agreed that a dedicated Drasi reaction/connector for routing events to agents (an "agent router") was necessary,
+as the pub/sub router used in the previous milestone relied on declarative configuration (YAML) and had no concept of agent identity or support for agents.
+To allow the agent to subscribe, there needed to be an [MCP](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro) server with tools, which we decided would be in-process as the tools would be specific to this reaction (and for simplicity).
+
+We also needed to maintain some sort of subscription state in the reaction, as some agents may want only certain types of events for certain queries, yet we didn't want agent developers to write one-off logic to filter out events.
+However, a simple in-memory store wouldn't be enough for anything outside of local development or testing, so this needed to be backed by a durable store
+(we chose [Dapr state stores](https://docs.dapr.io/operations/components/setup-state-store/) as Drasi already relied on Dapr and to enable developers to swap in their preferred storage provider).
+One downside of this choice is that we can only support one replica without implementing some sort of cache invalidation, but that was a problem we figured we could deal with later down the line (hopefully).
+
+The state model itself was influenced heavily by Dapr state store limitations — being a generic abstraction, it only supports key-value patterns.
+On top of that, when an event was emitted, we had to be able to look up all of the agents interested in that event with just the event itself and its metadata.
+While there are definitely some optimizations to be made (potentially using sorted lists), we ended up with a sort of "nested" map:
+
+```json
+{
+  "query_id_1": {
+    "subscription_id_1": {...},
+    "subscription_id_2": {...},
+    "subscription_id_3": {...},
+    ...
+  },
+  ...
+}
+```
+
+Next, we had to deal with fundamental distributed systems problems: delivery guarantees, consistency, and caching.
+We prioritized guaranteed delivery and strong consistency throughout for several reasons:
+1. Agents would be executing in the background — extra latency is not a problem since nobody is actively monitoring them.
+2. Our focus was on autonomous agents executing not just grunt work, but critical and/or customer-impacting business processes.
+Imagine what would happen if your agent never kicked off a critical action because an event was dropped due to network congestion, or failed to even be sent because a replica had stale subscriptions?
+2. The nature of the projects — Dapr Agents is designed for enterprise scale, while Drasi solves a specific problem for enterprises that want to act on changes across multiple, scattered data sources.
+
+With guaranteed delivery, we needed to be able to handle duplicate messages/actions.
+On the reaction side, we made our subscription tool calls idempotent by treating subscriptions as "upserts" and having the agent pass in subscription identifiers.
+On the agent side, we wanted exactly-once semantics as otherwise we'd have duplicate events triggering duplicate workflows.
+Fortunately, Dapr Agents offered [built-in deduplication in a 60 second window](https://github.com/dapr/dapr-agents/blob/34155c75c36e05285b02ff78e7ded14ef2acf350/dapr_agents/workflow/utils/subscription.py#L61-L79),
+which was good enough for us.
+
+For consistency and caching, we decided on a [cache-aside](https://www.geeksforgeeks.org/system-design/cache-aside-pattern/) strategy for reads and a [write-through](https://www.geeksforgeeks.org/computer-organization-architecture/write-through-and-write-back-in-cache/) strategy for writes to provide a balance between simplicity, read performance, and (local) consistency.
+We treated the backing store as the "source of truth", ensuring that a subscription can never be lost by writing them to the backing store first before updating the in-memory cache.
+Under the assumption that subscription writes would be quite rare, we opted for [optimistic concurrency control](https://en.wikipedia.org/wiki/Optimistic_concurrency_control) with [Dapr's support for ETags](https://docs.dapr.io/developing-applications/building-blocks/state-management/state-management-overview/#why-dapr-chooses-optimistic-concurrency-control-occ)
+
+Once we addressed the problems around the agent router, we needed to figure out the responsibilities of the agent and the agent runtime.
+Some of these challenges are extremely interesting as they were unique to our situation (from a non-biased perspective).
+
+The first problem relates to subscriptions — we've already ensured that subscriptions can never be lost once recorded, but how do we ensure that a subscription request gets delivered?
+This is where the agent runtime comes into play, as Dapr's MCP client has retries built-in.
+
+The second problem relates to data consistency across services. For example, say the agent decides to subscribe and fires off a tool call to the agent router, which successfully persists the subscription and sends a response.
+If that response **is lost** for whatever reason, there is a window where the agent router could forward an event to the agent without the agent having any record of the subscription (as it hasn't retried and received a successful response),
+resulting in this "indeterminate" state. To address this, we implemented a "two-stage" subscription — the agent runtime would persist its own subscription record with a `"PENDING"` status before calling the subscription tool.
+Any event that arrived after that point would be handled as there would be a subscription record, and the runtime would mark the subscription as `"ACTIVE"` on a successful response.
+This also explains why subscription ID is a client-side concern (which is atypical).
+
+A third problem we faced was that subscription ID and agent ID are **runtime concerns**, and the LLM should **not** be responsible for generating those (for good reasons).
+However, the agent router must obtain them somehow, so we needed a way to "inject" these into MCP tool calls without exposing them to the LLM.
+
+Aside — if you aren't familiar with MCP, it's effectively a protocol that standardizes the way agents call APIs.
+Most use cases follow the request-response model, where requests and responses are structured JSON that LLMs are all familiar with.
+MCP tools are functions that are roughly equivalent to your API routes in a typical web server, but instead of being identified by a path,
+tools are identified by tool names (which are part of a **tool schema**).
+
+As MCP is continuously evolving, best practices have not been established yet for injecting runtime arguments.
+[Some MCP servers](https://modelcontextprotocol.io/specification/2025-06-18/basic#_meta) accept a `_meta` property that serves a similar purpose as HTTP headers at the connection level,
+but we opted to keep our injected arguments (subscription ID, agent ID) at the top level.
+
+Another problem dealt with "reminding" the agent when the Drasi event is received via dynamic, LLM-generated instructions.
+Our thought process going in was effectively: ***"When the LLM decides to subscribe, it should be able to determine what it should do to act on an incoming event. Can't we just have instructions as a regular MCP tool parameter with a detailed-enough description?"***
+This sounded reasonable enough at the time (apart from the meta prompting required), but we quickly realized that instructions was a agent-only concern and should not be sent as part of the tool call.
+Accounting for injected arguments, this meant that we had to maintain **two** different schemas for our subscription tool:
+
+```
+LLM-exposed tool schema: { query ID, event types, instructions }
+Agent router tool schema: { query ID, event types, agent ID, subscription ID }
+```
+
+Once we knew how to generate the instructions, we had to consider the best place to store and inject those instructions.
+A natural direction was to leverage the system prompt/instructions, since Dapr Agents already supported "hot-reloading" for it (allowing changes to be made at runtime with zero downtime), but this was discarded.
+To understand why this was insufficient, we need to look at how Dapr agents are deployed. In our case, a pod holds an agent app, or "worker host" that can host many logical agents (instances) for a given type
+(if you're interested, you can read up on how the Dapr workflow substrate scales [here](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#workflow-scalability)).
+Modifying the instructions would affect **every agent belonging to that type**, so it was decided that instructions would be a part of the runtime subscription state.
+
+For instruction injection, we relied on our primary use case of having an agent subscribe, "sleep" (deactivate), and "wake up" (reactivate) on events to help guide us.
+To "wake up" the agent, we could either route the event to the same agent instance, potentially resulting in "eternal" agents with massive history logs; or we could
+continue treating agents as disposable workers since all the information needed to look up subscription state would exist on the event (namely CloudEvent metadata).
+We ultimately went with the second approach as no functionality exists in Dapr Agents today to handle the first,
+but this is still up in the air (again, there are no best practices to follow).
+
+The exact implementation details can be found in [this PR](https://github.com/dapr/dapr-agents/pull/744),
+but I won't delve any further since this blog post is long enough as is.
+
+Here is an architecture diagram for the subscription flow:
+<insert diagram here>
 
 ## Cloud Native Vancouver July 2026 meetup presentation
 
@@ -199,8 +343,8 @@ This is why it's important to identify your daily/weekly goals, and how they rel
 ## Future work
 
 So far, [v0.1.0 for the Drasi extension has been published](https://pypi.org/project/dapr-agents-ext-drasi/) with the ability to statically subscribe to Drasi queries.
-I've also built a [very rough proof of concept](https://github.com/drasi-project/drasi-platform/pull/443) of an "agent-aware" Drasi event router with an MCP server. This allows agents to subscribe to Drasi queries dynamically
-over any Dapr-supported message broker, and I've built [another proof of concept](https://github.com/dapr/dapr-agents/pull/744) demonstrating how Dapr Agents developers can enable this capability with a handful of lines of code.
+There's also a [very rough proof of concept](https://github.com/drasi-project/drasi-platform/pull/443) of an "agent-aware" Drasi event router with an MCP server. This allows agents to subscribe to Drasi queries dynamically
+over any Dapr-supported message broker, and there's [another proof of concept](https://github.com/dapr/dapr-agents/pull/744) demonstrating how Dapr Agents developers can enable this capability with a handful of lines of code.
 
 As school is starting up again, my mentor Aman Singh will pick up from where I left off and create an MVP based on my work, but there are definitely some things that I would like to explore in the future to make things production-ready
 (note: this is non-exhaustive):
