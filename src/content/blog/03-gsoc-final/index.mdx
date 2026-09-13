@@ -8,7 +8,25 @@ import Callout from "@/components/Callout.astro";
 import { Image } from "astro:assets";
 import { YouTube } from 'astro-embed';
 
+import drasiDiagram from './drasi-diagram.png';
 import subDiagram from './sub-diagram.png';
+import daprAgents1 from './dapr-agents-1.png';
+import daprAgents2 from './dapr-agents-2.png';
+import daprAgents3 from './dapr-agents-3.png';
+import daprAgents4 from './dapr-agents-4.png';
+import daprAgents5 from './dapr-agents-5.png';
+import daprAgents6 from './dapr-agents-6.png';
+import daprAgents7 from './dapr-agents-7.png';
+import daprAgents8 from './dapr-agents-8.png';
+import daprAgents9 from './dapr-agents-9.png';
+import daprAgents10 from './dapr-agents-10.png';
+import daprAgents11 from './dapr-agents-11.png';
+import drasiTrigger1 from './drasi-trigger-1.png';
+import drasiTrigger2 from './drasi-trigger-2.png';
+import drasiTrigger3 from './drasi-trigger-3.png';
+import drasiTrigger4 from './drasi-trigger-4.png';
+import drasiTrigger5 from './drasi-trigger-5.png';
+import drasiTrigger6 from './drasi-trigger-6.png';
 
 ---
 
@@ -47,30 +65,168 @@ On top of that, while running autonomous agents in production, more issues pop u
 - Failures are common — when agents restart, they repeat LLM/tool calls, which can be expensive at scale.
 - Governance and compliance — in highly-regulated industries, you need to be able to tightly control what an agent can access, and prove what an agent did at each step (and who authorized it) if you're called up for an audit.
 - Connecting to existing data sources and triggering agents from them involves tons of boilerplate code, reducing developer velocity.
+  Furthermore, these triggers are typically done in one of two ways:
+  1. Polling data sources, which can be inefficient and can sometimes miss changes (or the lack of them)
+  2. Long-lived connections, which are fragile and do not scale with traditional agent deployment models
 
 Fortunately for them (and unfortunately for us), there are several CNCF projects in this space:
 
 [Drasi](https://drasi.io/) is a CNCF Sandbox project aimed at making detecting and reacting to changes across data sources easier via declarative configuration. It consists of three main components:
-- **Sources** to ingest data from existing systems.
+- **Sources** to ingest data from existing systems — databases, streaming platforms, webhooks from third-party platforms, and more.
 - **Continuous Queries** that evaluate incoming data from different sources against user-defined, high-level "business conditions", and emit "change" events when those conditions are satisfied.
-- **Reactions** to push events to downstream consumers.
+- **Reactions** to push events to downstream consumers, or take action based on those events — this could be anything from updating dashboards, executing `kubectl` commands, or triggering agents.
+
+All of these components are pluggable, allowing you to build your own connectors for the tech stack you use, and donate them to the community if you feel like others can benefit.
+
+<figure>
+  <Image src={drasiDiagram} alt="Drasi architecture diagram" inferSize />
+  <figcaption>Drasi architecture diagram. Credit: [Drasi Docs](https://drasi.io/)</figcaption>
+</figure>
 
 [Dapr](https://dapr.io/) is a CNCF Graduated project consisting of a sidecar runtime and multiple APIs to help developers build microservices and distributed systems.
 One of its most popular and useful features is its built-in durable workflow engine (based on virtual actors),
 which powers the [Dapr Agents](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-introduction/) agentic framework/subproject.
 Dapr Agents comes with [many advantages over traditional agentic frameworks](https://docs.dapr.io/developing-ai/dapr-agents/dapr-agents-why/),
-but the one I find personally interesting is that agents can be deactivated when idle and reactivated on demand,
-allowing many agents can be multiplexed onto a single core (all thanks to the virtual actor architecture). There's nothing quite like it today, but I digress.
+but the one I find personally interesting is that agents can be "deactivated" (unloaded from memory) and reactivated on demand,
+allowing many agents can be multiplexed onto a single core all thanks to the virtual actor architecture. There's nothing quite like it today.
 
-As mentioned in the summary, this GSoC project was focused on integrating the two projects to enable new use cases,
-requiring a lot of exploratory work and uncovering gaps in both projects along the way. The following sections discuss
-the work that was done and the challenges faced along the way.
+As a quick demonstration of Dapr Agents' capabilities, suppose we have three replicas of some document summarization agent app:
+
+<figure>
+  <Image src={daprAgents1} alt="Dapr Agents diagram 1" inferSize />
+</figure>
+
+With Dapr Agents, we can easily trigger agents via pub/sub messages.
+The first task arrives, and **one** replica picks it up and schedules an agent
+(note: the agent doesn't **have** to land on this replica,
+and the agent's execution state or "progress" is managed by actors in the sidecar; see the [Dapr Workflow docs](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#sidecar-interactions) for more information).
+
+<figure>
+  <Image src={daprAgents2} alt="Dapr Agents diagram 2" inferSize />
+</figure>
+
+The next task arrives, another replica picks it up and schedules an agent.
+
+<figure>
+  <Image src={daprAgents3} alt="Dapr Agents diagram 3" inferSize />
+</figure>
+
+This continues until all of the tasks have been processed, with an agent for each task running on some replica.
+
+<figure>
+  <Image src={daprAgents4} alt="Dapr Agents diagram 4" inferSize />
+</figure>
+
+At this point, some agents may become inactive (perhaps waiting for human approval).
+This means that they are unloaded from memory, freeing up resources for other potential agents to run.
+
+<figure>
+  <Image src={daprAgents5} alt="Dapr Agents diagram 5" inferSize />
+</figure>
+
+Time passes, and our agents that were previously inactive have now become active again after receiving approval, with their state being rehydrated.
+Notice how they land on different replicas than the ones they were on originally —  this is "multiplexing" in action.
+Some other agents have also become inactive.
+
+<figure>
+  <Image src={daprAgents6} alt="Dapr Agents diagram 6" inferSize />
+</figure>
+
+Now, what if a replica inevitably fails?
+
+<figure>
+  <Image src={daprAgents7} alt="Dapr Agents diagram 7" inferSize />
+</figure>
+
+The agents that were on that replica simply pick up from their last "checkpoint" on a new replica, as their states are backed by a durable store.
+Meanwhile, the other agents keep making progress.
+
+<figure>
+  <Image src={daprAgents8} alt="Dapr Agents diagram 8" inferSize />
+</figure>
+
+If we're using Kubernetes deployments, another pod/replica might be created since our desired replica count is three.
+Progress continues.
+
+<figure>
+  <Image src={daprAgents9} alt="Dapr Agents diagram 9" inferSize />
+</figure>
+
+Some complete while the rest continue...
+
+<figure>
+  <Image src={daprAgents10} alt="Dapr Agents diagram 10" inferSize />
+</figure>
+
+Finally, all of the agents complete.
+
+<figure>
+  <Image src={daprAgents11} alt="Dapr Agents diagram 11" inferSize />
+</figure>
+
+Hopefully, you have a better understanding now of how Dapr Agents works under the hood, how it can scale, and how it handles faults to enable long-running agents.
+
+Now that you know the context behind Drasi and Dapr Agents, this GSoC project was focused on integrating the two projects to enable new use cases,
+requiring a lot of exploratory work and uncovering gaps in both projects. The following sections discuss
+the work that was done and the numerous challenges faced along the way.
 
 ### Drasi extension for change-driven agents
 
 After familiarizing myself with both projects' architectures and learning about Kubernetes during the community bonding period,
 we decided that the first milestone would involve writing an extension for Dapr Agents so that developers can trigger agents with Drasi events.
 To start with, we assumed that the Drasi queries would be known in advance — while not ideal, this would help us discover any initial gaps and scope the work for the GSoC period appropriately.
+
+To give you an idea of how this could be used in practice, pretend that we are an electronics retailer that wants to automate inventory management
+using agents that place orders when products become low in stock (lower than some threshold).
+Products already live in Postgres, but we don't have an existing eventing system nor any agent infrastructure (this is a greenfield initiative).
+Yes, this can probably be done with a deterministic workflow, but this request comes straight from the top.
+
+We end up with something like this:
+
+<figure>
+  <Image src={drasiTrigger1} alt="Drasi trigger flow diagram 1" inferSize />
+</figure>
+
+At some point, a new graphics card "XYZ GPU" becomes available and is added to the product list.
+Drasi then captures the low-level change from Postgres, decodes it, then sends it to the query so it can update its
+state for "XYZ GPU".
+
+<figure>
+  <Image src={drasiTrigger2} alt="Drasi trigger flow diagram 2" inferSize />
+</figure>
+
+Later on, the stock level for "XYZ GPU" changes, which Drasi tracks.
+Notice that the stock level for "XYZ GPU" is still above the threshold,
+so the low stock condition has not been satisfied and **no** change event has been emitted by the query.
+
+<figure>
+  <Image src={drasiTrigger3} alt="Drasi trigger flow diagram 3" inferSize />
+</figure>
+
+Some more time passes, and the stock level for "XYZ GPU" changes once more.
+This time, the stock level for "XYZ GPU" is falls below the threshold,
+so the low stock condition is met.
+
+<figure>
+  <Image src={drasiTrigger4} alt="Drasi trigger flow diagram 4" inferSize />
+</figure>
+
+The query emits a change event in the shape that you defined in
+the query configuration, and eventually gets published by the Drasi pub/sub reaction.
+
+<figure>
+  <Image src={drasiTrigger5} alt="Drasi trigger flow diagram 5" inferSize />
+</figure>
+
+Lastly, the inventory agent app pulls this event, translates it to an actionable task,
+then triggers the agent.
+
+<figure>
+  <Image src={drasiTrigger6} alt="Drasi trigger flow diagram 6" inferSize />
+</figure>
+
+Most of this flow already existed — the main issue was it was not easy to subscribe to Drasi queries without a decent understanding of Drasi **and** Dapr Agents internals.
+In today's world where time is limited and expectations are high, a good developer experience is extremely important.
 
 Initially, we were thinking of a decorator `@drasi_trigger` allowing us to attach metadata (Drasi query ID, Dapr pub/sub component name, pub/sub topic name, etc.)
 to the agent, and later use that metadata at runtime to create Dapr pub/sub subscriptions and filter on events as they arrive.
@@ -115,53 +271,53 @@ the choice was between "packed" events representing multiple batched changes, "u
 <figure>
 ```json
 {
-  "specversion": "1.0",
-  "type": "com.dapr.event.sent",
-  "source": "reaction-post-dapr-pubsub-app-id",
-  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-  "datacontenttype": "application/json",
-  "pubsubname": "drasisystem-pubsub",
-  "topic": "product-updates-packed",
-  "data": {
-    "queryId": "product-updates-query",
-    "sourceTimeMs": 1678886400123,
-    "addedResults": [
-      { "product_id": "P101", "name": "Laptop X", "price": 1200.00 }
-    ],
-    "updatedResults": [],
-    "deletedResults": [],
-    "sequence": 1
-  }
+  "queryId": "low-stock-event-query",
+  "sourceTimeMs": 18002672001,
+  "addedResults": [
+    {
+      "product": "XYZ GPU", 
+      "stock": 3,
+      "threshold": 5
+    },
+    {
+      "product": "ABC Laptop", 
+      "stock": 12,
+      "threshold": 25
+    },
+    {
+      "product": "123 Smart Glasses", 
+      "stock": 1,
+      "threshold": 1
+    },
+  ],
+  "updatedResults": [],
+  "deletedResults": [],
+  "sequence": 1
 }
 ```
-<figcaption>An example of a "packed" event representing an inventory update. Credit: [Drasi Docs](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/#packed-format)</figcaption>
+<figcaption>An example of a "packed" event representing multiple products that are low in stock.</figcaption>
 </figure>
 
 <figure>
 ```json
 {
   "op": "u",
-  "ts_ms": 1678886400350,
+  "ts_ms": 18002672001,
   "seq": 1,
   "payload": {
     "source": {
-      "queryId": "inventory-alerts-query",
-      "ts_ms": 1678886400300
+      "queryId": "low-stock-event-query",
+      "ts_ms": 18002672001
     },
-    "before": {
-      "itemId": "SKU789", 
-      "stockLevel": 5,
-      "status": "low"
-    },
-    "after": { 
-      "itemId": "SKU789", 
-      "stockLevel": 3,
-      "status": "critically-low"
+    "after": {
+      "product": "XYZ GPU", 
+      "stock": 3,
+      "threshold": 5
     }
   }
 }
 ```
-<figcaption>An example of an "unpacked" event representing an inventory stock update. Credit: [Drasi Docs](https://drasi.io/drasi-kubernetes/how-to-guides/configure-reactions/configure-post-pubsub-reaction/#unpacked-format)</figcaption>
+<figcaption>An example of an "unpacked" event representing a single product that is low in stock (matches the first product in the above "packed" event).</figcaption>
 </figure>
 
 To minimize scope creep, we focused on unpacked events for two reasons:
