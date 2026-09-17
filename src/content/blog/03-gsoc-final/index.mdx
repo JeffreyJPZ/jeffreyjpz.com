@@ -99,7 +99,7 @@ As a quick demonstration of Dapr Agents' capabilities, suppose we have three rep
 With Dapr Agents, we can easily trigger agents via pub/sub messages.
 The first task arrives, and **one** replica picks it up and schedules an agent
 (note: the agent doesn't **have** to land on this replica,
-and the agent's execution state or "progress" is managed by actors in the sidecar; see the [Dapr Workflow docs](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#sidecar-interactions) for more information).
+and the agent's execution state or "progress" is managed by the sidecar; see the [Dapr Workflow docs](https://docs.dapr.io/developing-applications/building-blocks/workflow/workflow-architecture/#sidecar-interactions) for more information).
 
 <figure>
   <Image src={daprAgents2} alt="Dapr Agents diagram 2" inferSize />
@@ -124,8 +124,8 @@ This means that they are unloaded from memory, freeing up resources for other po
   <Image src={daprAgents5} alt="Dapr Agents diagram 5" inferSize />
 </figure>
 
-Time passes, and our agents that were previously inactive have now become active again after receiving approval, with their state being rehydrated.
-Notice how they land on different replicas than the ones they were on originally —  this is "multiplexing" in action.
+Time passes, and our agents that were previously inactive have now become active again after receiving approval.
+Notice how they land on different replicas than the ones they were on originally —  this is the "multiplexing" that was mentioned earlier.
 Some other agents have also become inactive.
 
 <figure>
@@ -138,7 +138,7 @@ Now, what if a replica inevitably fails?
   <Image src={daprAgents7} alt="Dapr Agents diagram 7" inferSize />
 </figure>
 
-The agents that were on that replica simply pick up from their last "checkpoint" on a new replica, as their states are backed by a durable store.
+The agents that were on that replica simply pick up from their last saved "checkpoint" on a new replica, as everything is backed by a durable store.
 Meanwhile, the other agents keep making progress.
 
 <figure>
