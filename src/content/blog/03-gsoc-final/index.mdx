@@ -444,9 +444,9 @@ To understand why this was insufficient, we need to look at how Dapr agents are 
 Modifying the instructions would affect **every agent belonging to that type**, so it was decided that instructions would be a part of the runtime subscription state.
 
 For instruction injection, we relied on our initial idea of an agent subscribing, "sleep" (deactivate), and "wake up" (reactivate) on events to help guide us.
-To "wake up" the agent, we could either route the event to the same agent instance, potentially resulting in "eternal" agents with massive history logs; or we could
-continue treating agents as disposable workers since all the information needed to look up subscription state would exist on the event (namely CloudEvent metadata).
-We ultimately went with the second approach as no functionality exists in Dapr Agents today to handle the first,
+To "wake up" the agent, we could either route the event to the same agent instance, potentially resulting in "eternal" agents with bloated context windows and massive history logs; or we could
+effectively continue the workflow on a new agent instance since all the information needed to look up subscription state would exist on the event (namely CloudEvent metadata).
+We ultimately went with the second approach due to the downsides of the first approach and because no functionality exists in Dapr Agents today to handle the first approach,
 but this is still up in the air (again, there are no best practices to follow).
 
 The exact implementation details can be found in [this PR](https://github.com/dapr/dapr-agents/pull/744),
@@ -512,6 +512,8 @@ over any Dapr-supported message broker, and there's [another proof of concept](h
 As school is starting up again, my mentor Aman Singh will pick up from where I left off and create an MVP based on my work, but there are definitely some things that I would like to explore in the future to make things production-ready
 (note: this is non-exhaustive):
 
+- How can [agent skills](https://agentskills.io/home) be integrated? I don't think this would replace persisted subscription instructions as we need to guarantee that a new agent instance "sees" these instructions (by always loading them into its context),
+but this could make the "meta prompts" reusable and allow individual agent instances to carry out different segments of a long-running, domain-specific workflow.
 - Security was out of scope for the GSoC period not only because of time limitations, but because [agent identity](https://www.diagrid.io/blog/agent-identity-on-behalf-of-delegation) is a relatively new problem.
 - Scale-to-zero for agent apps (not to be confused with the agents themselves) had to be cut as well due to a lack of Dapr runtime support (you can see some related [proposals](https://github.com/dapr/proposals/pull/77) and [issues](https://github.com/dapr/dapr/issues/10442)).
 - Finally, we focused on use cases that could probably be modelled by deterministic workflows (e.g. a basic inventory agent that orders more stock when a product in a database becomes low in stock). Exploring use cases that leverage Drasi's advantages
