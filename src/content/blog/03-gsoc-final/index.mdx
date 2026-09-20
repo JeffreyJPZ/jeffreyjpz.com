@@ -516,7 +516,7 @@ As school is starting up again, my mentor Aman Singh will pick up from where I l
 but this could make the "meta prompts" reusable and allow individual agent instances to carry out different segments of a long-running, domain-specific workflow.
 - Security was out of scope for the GSoC period not only because of time limitations, but because [agent identity](https://www.diagrid.io/blog/agent-identity-on-behalf-of-delegation) is a relatively new problem.
 - Scale-to-zero for agent apps (not to be confused with the agents themselves) had to be cut as well due to a lack of Dapr runtime support (you can see some related [proposals](https://github.com/dapr/proposals/pull/77) and [issues](https://github.com/dapr/dapr/issues/10442)).
-- Finally, we focused on use cases that could probably be modelled by deterministic workflows (e.g. a basic inventory agent that orders more stock when a product in a database becomes low in stock). Exploring use cases that leverage Drasi's advantages
+- Finally, we focused on use cases that could probably be modelled by deterministic workflows (e.g. a basic inventory agent that orders more stock when a product in a database becomes low in stock). Exploring use cases involving investigation/synthesis that leverage Drasi's advantages
 (detecting high-frequency changes and the absence of change) and Dapr Agents' advantages (adding reliability, scalability, durability, and governance to long-running autonomous agents and orchestrations) could expose interesting gaps.
 
 ## Acknowledgements
