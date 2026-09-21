@@ -413,10 +413,10 @@ The second problem relates to data consistency across services. For example, say
 If that response **is lost** for whatever reason, there is a window where the agent router could forward an event to the agent without the agent having any record of the subscription (as it hasn't retried and received a successful response),
 resulting in this "indeterminate" state. To address this, we implemented a "two-stage" subscription — the agent runtime would persist its own subscription record with a `"PENDING"` status before calling the subscription tool.
 Any event that arrived after that point would be handled as there would be a subscription record, and the runtime would mark the subscription as `"ACTIVE"` on a successful response.
-This also explains why subscription ID is a client-side concern (which is atypical).
+This, along with the recent introduction of [Sessionless MCP via Explicit State Handles](https://modelcontextprotocol.io/seps/2567-sessionless-mcp#explicit-state-handles), cemented our decision to have client-created subscription IDs (which is atypical).
 
 A third problem we faced was that subscription ID and agent ID are **runtime concerns**, and the LLM should **not** be responsible for generating those (for good reasons).
-However, the agent router must obtain them somehow, so we needed a way to "inject" these into MCP tool calls without exposing them to the LLM.
+However, the agent router must obtain them somehow for its own subscription state, so we needed a way to "inject" these into MCP tool calls without exposing them to the LLM.
 
 Aside — if you aren't familiar with MCP, it's effectively a protocol that standardizes the way agents call APIs.
 Most use cases follow the request-response model, where requests and responses are structured JSON that LLMs are all familiar with.
